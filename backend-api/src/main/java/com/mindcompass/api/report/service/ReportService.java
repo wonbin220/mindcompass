@@ -1,6 +1,6 @@
 package com.mindcompass.api.report.service;
 
-// 리포트 화면의 월간 요약과 추이 응답을 조립하고 조회 메트릭을 기록하는 서비스다.
+// 리포트 화면의 요약/추이 응답을 조립하고 조회 메트릭을 기록하는 서비스다.
 
 import com.mindcompass.api.common.exception.InvalidReportRequestException;
 import com.mindcompass.api.common.logging.RequestTraceContext;
@@ -78,8 +78,8 @@ public class ReportService {
         return response;
     }
 
-    public WeeklyEmotionTrendResponse getWeeklyEmotionTrend(Long userId) {
-        LocalDate endDate = LocalDate.now();
+    public WeeklyEmotionTrendResponse getWeeklyEmotionTrend(Long userId, LocalDate anchorDate) {
+        LocalDate endDate = anchorDate != null ? anchorDate : LocalDate.now();
         LocalDate startDate = endDate.minusDays(6);
 
         Map<LocalDate, List<DiarySummaryResponse>> summariesByDate = diaryQueryRepository

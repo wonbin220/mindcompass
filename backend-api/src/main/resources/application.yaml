@@ -51,3 +51,6 @@ app:
   ai:
     # 내부 FastAPI 서버 주소입니다.
     base-url: ${AI_API_BASE_URL:http://localhost:8001}
+  web:
+    # 웹 프론트 로컬 개발 서버에서 호출할 origin 목록입니다.
+    allowed-origins: ${WEB_ALLOWED_ORIGINS:http://localhost:3000}

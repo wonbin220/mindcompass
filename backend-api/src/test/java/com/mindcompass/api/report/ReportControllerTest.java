@@ -1,6 +1,6 @@
 package com.mindcompass.api.report;
 
-// ReportController의 조회 계약과 예외 응답을 검증하는 WebMvc 테스트다.
+// 리포트 컨트롤러의 조회 계약과 파라미터 처리를 검증하는 WebMvc 테스트다.
 
 import com.mindcompass.api.auth.security.JwtAuthenticationFilter;
 import com.mindcompass.api.common.exception.GlobalExceptionHandler;
@@ -26,8 +26,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -74,22 +74,39 @@ class ReportControllerTest {
 
     @Test
     void getWeeklyEmotionTrendReturnsSevenDayItems() throws Exception {
-        when(reportService.getWeeklyEmotionTrend(isNull()))
+        when(reportService.getWeeklyEmotionTrend(isNull(), isNull()))
                 .thenReturn(new WeeklyEmotionTrendResponse(
-                        LocalDate.of(2026, 3, 16),
-                        LocalDate.of(2026, 3, 22),
+                        LocalDate.of(2026, 3, 18),
+                        LocalDate.of(2026, 3, 24),
                         List.of(
-                                EmotionTrendPointResponse.empty(LocalDate.of(2026, 3, 16)),
-                                new EmotionTrendPointResponse(LocalDate.of(2026, 3, 17), true, 1, PrimaryEmotion.CALM, 2)
+                                EmotionTrendPointResponse.empty(LocalDate.of(2026, 3, 18)),
+                                new EmotionTrendPointResponse(LocalDate.of(2026, 3, 19), true, 1, PrimaryEmotion.CALM, 2)
                         )
                 ));
 
         mockMvc.perform(get("/api/v1/reports/emotions/weekly")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.startDate").value("2026-03-16"))
+                .andExpect(jsonPath("$.startDate").value("2026-03-18"))
                 .andExpect(jsonPath("$.items[0].hasDiary").value(false))
                 .andExpect(jsonPath("$.items[1].primaryEmotion").value("CALM"));
+    }
+
+    @Test
+    void getWeeklyEmotionTrendAcceptsAnchorDate() throws Exception {
+        when(reportService.getWeeklyEmotionTrend(isNull(), eq(LocalDate.of(2026, 3, 18))))
+                .thenReturn(new WeeklyEmotionTrendResponse(
+                        LocalDate.of(2026, 3, 12),
+                        LocalDate.of(2026, 3, 18),
+                        List.of(EmotionTrendPointResponse.empty(LocalDate.of(2026, 3, 12)))
+                ));
+
+        mockMvc.perform(get("/api/v1/reports/emotions/weekly")
+                        .param("date", "2026-03-18")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.startDate").value("2026-03-12"))
+                .andExpect(jsonPath("$.endDate").value("2026-03-18"));
     }
 
     @Test

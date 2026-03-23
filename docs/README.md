@@ -38,3 +38,17 @@
 - DB Table Specification이 실제 테이블 구조와 관계를 한 번에 정리
 
 앞으로 새 도메인을 추가할 때도 같은 형식으로 문서를 늘리면 된다.
+
+## 웹 프론트 시작점
+
+`web-app`은 `Next.js + Tailwind CSS + shadcn/ui` 기준의 웹 클라이언트 골격이다.
+
+현재 포함 범위:
+- App Router 기준 기본 구조
+- 공통 레이아웃과 사이드 네비게이션
+- `login`, `calendar`, `diary`, `chat`, `report` 샘플 페이지
+
+아직 하지 않은 것:
+- 패키지 설치
+- 실제 `backend-api` API 클라이언트 연결
+- shadcn/ui 컴포넌트 실생성

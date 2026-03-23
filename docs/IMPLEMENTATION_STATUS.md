@@ -315,3 +315,85 @@
 - `V4__chat.sql`은 신규 생성용이다.
 - `V5__chat_backfill.sql`은 복구용 히스토리다.
 - 둘 다 역할이 달라 현재는 함께 유지하는 것이 맞다.
+### Web App 초기 구조
+- `web-app` 폴더를 새로 추가했다.
+- 기술 스택 기준:
+  - `Next.js`
+  - `Tailwind CSS`
+  - `shadcn/ui` 전제 설정
+- 현재 포함 범위:
+  - App Router 기본 구조
+  - 공통 `AppShell`, `SideNav`, 카드/상태 배지 컴포넌트
+  - `login`, `calendar`, `diary`, `chat`, `report` 샘플 페이지
+- 아직 하지 않은 것:
+  - `npm install`
+  - 실제 실행 확인
+  - `backend-api` 연동용 API 클라이언트
+  - 실제 shadcn/ui 컴포넌트 생성
+- 다음 추천 작업:
+  1. `web-app` 의존성 설치
+  2. `backend-api` base URL 환경변수 연결
+  3. 로그인/캘린더부터 실제 API 연동
+### Web App 실행 확인
+- `web-app` 의존성 설치 완료
+- 현재 로컬 환경 제약에 맞춰 `Next.js 13.5.11 + React 18 + Tailwind CSS 3` 조합으로 조정
+- `npm run build` 통과
+- `npm run dev` 기동 확인 완료
+  - Local: `http://localhost:3000`
+- 로그인 화면에서 `backend-api`의 `POST /api/v1/auth/login`을 실제 호출하도록 연동
+- 로그인 성공 시 `accessToken`, `refreshToken`을 브라우저 `localStorage`에 저장
+- `backend-api`는 `WEB_ALLOWED_ORIGINS` 기준 CORS 허용 추가
+- 캘린더 화면에서 `GET /api/v1/users/me`, `GET /api/v1/calendar/monthly-emotions`, `GET /api/v1/calendar/daily-summary`를 실제 호출하도록 연동
+- 토큰이 없거나 세션이 만료되면 캘린더 화면에서 로그인 화면으로 되돌리는 최소 보호 흐름 추가
+- 일기 화면에서 `POST /api/v1/diaries`, `GET /api/v1/diaries/{diaryId}`를 실제 호출하도록 연동
+- 저장 직후 상세 조회를 다시 호출해 AI 분석/위험도 필드를 우측 패널에 표시
+- 채팅 화면에서 `POST /api/v1/chat/sessions`, `GET /api/v1/chat/sessions`, `GET /api/v1/chat/sessions/{sessionId}`, `POST /api/v1/chat/sessions/{sessionId}/messages`를 실제 호출하도록 연동
+- 응답의 `responseType`을 상태 배지로 표시하고, 세션 상세를 재조회해 메시지 목록을 갱신
+- 리포트 화면에서 `GET /api/v1/reports/monthly-summary`, `GET /api/v1/reports/emotions/weekly`, `GET /api/v1/reports/risks/monthly`를 실제 호출하도록 연동
+- 월간 요약 카드, 주간 감정 추이 목록, 월간 위험도 막대를 실제 응답 데이터로 표시
+- 아직 하지 않은 것:
+  - shadcn/ui 실제 컴포넌트 생성
+
+### Web App 인증 복구 / 전역 보호 라우트
+- `AuthProvider`를 `web-app/src/app/layout.tsx`에 연결
+- 앱 진입 시 `localStorage`의 토큰을 읽고 `GET /api/v1/users/me`로 세션 복구
+- 루트 경로 `/`는 인증 상태에 따라 `/login` 또는 `/calendar`로 자동 분기
+- 보호 경로:
+  - `/calendar`
+  - `/diary`
+  - `/chat`
+  - `/report`
+- 토큰 없음 / 세션 만료 시 `/login`으로 이동
+- 보호 경로에서 로그인으로 이동될 때 `redirect` query를 유지하고, 로그인 후 원래 보려던 화면으로 복귀
+- 이미 인증된 사용자가 `/login`에 접근하면 `/calendar`로 이동
+- 보호 경로 진입 시 세션 확인 중 로딩 화면 표시
+- 로그인 성공 후 `completeLogin -> restoreSession` 순서로 사용자 상태 확정
+- 공통 레이아웃 우측 상단에 사용자 닉네임, 세션 상태, 로그아웃 버튼 표시
+- 사이드 네비게이션에 현재 경로 하이라이트 추가
+- 모바일에서는 상단 탭형 퀵 네비게이션, 데스크톱에서는 sticky 사이드바 사용
+- 사용자 카드 드롭다운에서 이메일, 응답 모드, 세션 새로고침, 로그아웃 제공
+- 검증:
+  - `web-app`: `npm run build` 통과
+  - `backend-api`: `./gradlew.bat compileJava` 통과
+
+### Web App 공통 UI 1차 적용
+- `web-app/src/components/ui`에 shadcn 스타일 공통 컴포넌트 추가
+  - `Button`
+  - `Card`
+  - `Input`
+  - `Textarea`
+  - `Select`
+  - `Label`
+- `ScreenCard`를 `Card` 기반으로 재구성
+- 로그인 폼을 공통 UI로 교체
+- 일기 작성 폼을 공통 UI로 교체
+- 캘린더 날짜 버튼을 공통 `Button`으로 교체
+- 채팅 화면의 세션 생성 / 세션 선택 / 메시지 입력을 공통 UI로 교체
+- 리포트 화면 섹션을 공통 `Card` 계열 구조로 통일
+- 검증:
+  - `web-app`: `npm run build` 통과
+  - 실제 shadcn/ui 컴포넌트 생성
+### 2026-03-24 Web App 리포트 보강 메모
+- `GET /api/v1/reports/emotions/weekly?date=YYYY-MM-DD` 기준 날짜 query 지원 추가
+- 주간 감정 추이에 기준 날짜 입력, 이전 7일, 다음 7일 이동 버튼 추가
+- 월간 위험도 추이 카드에 내부 스크롤과 `scrollbar-soft` 스타일 추가

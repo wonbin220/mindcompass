@@ -1,6 +1,6 @@
 package com.mindcompass.api.report;
 
-// ReportService의 월간 요약 조립과 파라미터 검증을 확인하는 테스트다.
+// 리포트 서비스의 기간 계산과 응답 조립을 검증하는 테스트다.
 
 import com.mindcompass.api.common.exception.InvalidReportRequestException;
 import com.mindcompass.api.common.metrics.AppMetricsRecorder;
@@ -8,8 +8,8 @@ import com.mindcompass.api.diary.domain.PrimaryEmotion;
 import com.mindcompass.api.diary.dto.response.DiarySummaryResponse;
 import com.mindcompass.api.diary.repository.DiaryQueryRepository;
 import com.mindcompass.api.report.dto.response.EmotionCountResponse;
-import com.mindcompass.api.report.dto.response.MonthlyRiskTrendResponse;
 import com.mindcompass.api.report.dto.response.MonthlyReportResponse;
+import com.mindcompass.api.report.dto.response.MonthlyRiskTrendResponse;
 import com.mindcompass.api.report.dto.response.RiskSummaryResponse;
 import com.mindcompass.api.report.dto.response.RiskTrendEntryResponse;
 import com.mindcompass.api.report.dto.response.WeeklyEmotionTrendResponse;
@@ -91,22 +91,26 @@ class ReportServiceTest {
     }
 
     @Test
-    void getWeeklyEmotionTrendReturnsSevenItems() {
-        when(diaryQueryRepository.findMonthlySummaries(1L, LocalDate.now().minusDays(6), LocalDate.now()))
+    void getWeeklyEmotionTrendReturnsSevenItemsAroundAnchorDate() {
+        LocalDate anchorDate = LocalDate.of(2026, 3, 24);
+
+        when(diaryQueryRepository.findMonthlySummaries(1L, anchorDate.minusDays(6), anchorDate))
                 .thenReturn(List.of(
                         new DiarySummaryResponse(
                                 1L,
-                                "테스트",
+                                "테스트 일기",
                                 "본문",
                                 PrimaryEmotion.ANXIOUS,
                                 4,
-                                LocalDateTime.now().minusDays(1)
+                                LocalDateTime.of(2026, 3, 23, 10, 0)
                         )
                 ));
 
-        WeeklyEmotionTrendResponse response = reportService.getWeeklyEmotionTrend(1L);
+        WeeklyEmotionTrendResponse response = reportService.getWeeklyEmotionTrend(1L, anchorDate);
 
         assertThat(response.items()).hasSize(7);
+        assertThat(response.startDate()).isEqualTo(LocalDate.of(2026, 3, 18));
+        assertThat(response.endDate()).isEqualTo(anchorDate);
     }
 
     @Test
@@ -120,9 +124,15 @@ class ReportServiceTest {
         MonthlyRiskTrendResponse response = reportService.getMonthlyRiskTrend(1L, 2026, 3);
 
         assertThat(response.items()).hasSize(31);
-        assertThat(response.items().stream().filter(item -> item.date().equals(LocalDate.of(2026, 3, 5))).findFirst().orElseThrow().mediumCount())
-                .isEqualTo(1);
-        assertThat(response.items().stream().filter(item -> item.date().equals(LocalDate.of(2026, 3, 5))).findFirst().orElseThrow().highCount())
-                .isEqualTo(1);
+        assertThat(response.items().stream()
+                .filter(item -> item.date().equals(LocalDate.of(2026, 3, 5)))
+                .findFirst()
+                .orElseThrow()
+                .mediumCount()).isEqualTo(1);
+        assertThat(response.items().stream()
+                .filter(item -> item.date().equals(LocalDate.of(2026, 3, 5)))
+                .findFirst()
+                .orElseThrow()
+                .highCount()).isEqualTo(1);
     }
 }
