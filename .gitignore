@@ -46,3 +46,4 @@ scripts/build_major_feature_final_png_and_ppt.ps1
 scripts/build_major_feature_image_slots.ps1
 scripts/build_major_feature_image_slots_v2.ps1
 scripts/build_major_feature_image_slots_v3.ps1
+scripts/
