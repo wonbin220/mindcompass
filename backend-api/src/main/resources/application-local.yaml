@@ -1,0 +1,5 @@
+spring:
+  jpa:
+    hibernate:
+      # 로컬 개발에서는 누락 테이블을 자동 보강해 부팅을 막지 않도록 한다.
+      ddl-auto: update

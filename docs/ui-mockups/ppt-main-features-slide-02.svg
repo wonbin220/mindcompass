@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 기술팀장 면접 발표용 주요 기능 화면 개선 슬라이드 -->
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#F3F6FB"/>
+
+  <text x="72" y="78" fill="#17202B" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="38" font-weight="800">주요 기능 화면</text>
+  <text x="72" y="114" fill="#6F7C8F" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="18" font-weight="500">감정 기록부터 AI 상담, 회고까지 이어지는 핵심 사용자 흐름을 화면 단위로 정리했습니다.</text>
+
+  <rect x="72" y="150" width="184" height="42" rx="21" fill="#EAF3FF"/>
+  <text x="118" y="177" fill="#4E86E6" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="15" font-weight="700">모바일 중심 설계</text>
+  <rect x="270" y="150" width="170" height="42" rx="21" fill="#FFF7D6"/>
+  <text x="314" y="177" fill="#7B6920" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="15" font-weight="700">웹 확장 가능</text>
+  <rect x="454" y="150" width="170" height="42" rx="21" fill="#EEF9EF"/>
+  <text x="504" y="177" fill="#4A915B" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="15" font-weight="700">Safety-first UX</text>
+
+  <rect x="72" y="224" width="804" height="604" rx="28" fill="#FFFFFF"/>
+  <text x="104" y="268" fill="#17202B" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="24" font-weight="800">모바일 핵심 화면</text>
+  <text x="104" y="298" fill="#738094" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="15" font-weight="500">로그인 → 캘린더 → 일기 → 채팅 → 리포트 흐름으로 연결</text>
+
+  <!-- mobile frames -->
+  <g>
+    <text x="122" y="340" fill="#5D6D82" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="700">로그인</text>
+    <rect x="100" y="356" width="136" height="260" rx="24" fill="#FFFFFF" stroke="#E7EDF5" stroke-width="2"/>
+    <circle cx="168" cy="416" r="22" fill="#EAF3FF"/>
+    <rect x="124" y="474" width="88" height="24" rx="8" fill="#F8FAFF"/>
+    <rect x="124" y="510" width="88" height="24" rx="8" fill="#F8FAFF"/>
+    <rect x="124" y="556" width="88" height="32" rx="16" fill="#5E9BF5"/>
+  </g>
+
+  <g>
+    <text x="274" y="340" fill="#5D6D82" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="700">캘린더</text>
+    <rect x="252" y="356" width="136" height="260" rx="24" fill="#FFFFFF" stroke="#E7EDF5" stroke-width="2"/>
+    <rect x="274" y="384" width="92" height="18" rx="9" fill="#FFF7D6"/>
+    <rect x="274" y="420" width="92" height="100" rx="14" fill="#F8FAFF"/>
+    <rect x="290" y="440" width="14" height="14" rx="4" fill="#EAF3FF"/>
+    <rect x="312" y="440" width="14" height="14" rx="4" fill="#FFF7D6"/>
+    <rect x="334" y="440" width="14" height="14" rx="4" fill="#EEF9EF"/>
+    <rect x="274" y="544" width="92" height="28" rx="12" fill="#FFFDF8" stroke="#F0E6C7"/>
+  </g>
+
+  <g>
+    <text x="430" y="340" fill="#5D6D82" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="700">일기</text>
+    <rect x="408" y="356" width="136" height="260" rx="24" fill="#FFFFFF" stroke="#E7EDF5" stroke-width="2"/>
+    <rect x="430" y="384" width="92" height="22" rx="8" fill="#F8FAFF"/>
+    <rect x="430" y="420" width="92" height="84" rx="12" fill="#F8FAFF"/>
+    <rect x="430" y="522" width="42" height="18" rx="9" fill="#FFF7D6"/>
+    <rect x="480" y="522" width="42" height="18" rx="9" fill="#EAF3FF"/>
+    <rect x="430" y="556" width="92" height="28" rx="14" fill="#5E9BF5"/>
+  </g>
+
+  <g>
+    <text x="586" y="340" fill="#5D6D82" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="700">채팅</text>
+    <rect x="564" y="356" width="136" height="260" rx="24" fill="#FFFFFF" stroke="#E7EDF5" stroke-width="2"/>
+    <rect x="586" y="392" width="60" height="28" rx="10" fill="#F7FBF8" stroke="#DDEEE1"/>
+    <rect x="610" y="434" width="50" height="24" rx="12" fill="#5E9BF5"/>
+    <rect x="586" y="474" width="72" height="34" rx="12" fill="#FFF9EC" stroke="#F4E3B0"/>
+    <rect x="586" y="560" width="72" height="22" rx="11" fill="#F3F6FA"/>
+  </g>
+
+  <g>
+    <text x="738" y="340" fill="#5D6D82" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="700">리포트</text>
+    <rect x="716" y="356" width="136" height="260" rx="24" fill="#FFFFFF" stroke="#E7EDF5" stroke-width="2"/>
+    <rect x="738" y="384" width="92" height="20" rx="8" fill="#F8FAFF"/>
+    <path d="M744 474 C760 466, 772 462, 788 464 C804 466, 816 448, 830 450" stroke="#5E9BF5" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <rect x="738" y="514" width="92" height="30" rx="12" fill="#FFFDF8" stroke="#F0E6C7"/>
+  </g>
+
+  <rect x="104" y="656" width="740" height="140" rx="22" fill="#F8FAFF" stroke="#E7EDF5"/>
+  <text x="132" y="690" fill="#17202B" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="17" font-weight="700">설계 포인트</text>
+  <text x="132" y="722" fill="#5E6C80" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="14" font-weight="500">• 캘린더는 날짜 기반 진입 허브, 일기는 핵심 입력 화면, 채팅은 AI 분기 UX, 리포트는 회고 화면으로 역할을 분리했습니다.</text>
+  <text x="132" y="750" fill="#5E6C80" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="14" font-weight="500">• 특히 채팅은 NORMAL / SUPPORTIVE / SAFETY 응답 차이를 UI에서 인지할 수 있도록 설계했습니다.</text>
+
+  <rect x="910" y="224" width="618" height="604" rx="28" fill="#FFFFFF"/>
+  <text x="942" y="268" fill="#17202B" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="24" font-weight="800">웹 반응형 예시</text>
+  <text x="942" y="298" fill="#738094" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="15" font-weight="500">모바일과 동일한 기능을 유지하면서 정보 밀도를 확장하는 방향으로 구성했습니다.</text>
+
+  <!-- actual web thumbnails -->
+  <rect x="942" y="326" width="554" height="220" rx="22" fill="#F8FAFF" stroke="#E7EDF5"/>
+  <rect x="958" y="342" width="522" height="188" rx="18" fill="#FFFFFF" stroke="#E7EDF5"/>
+  <rect x="976" y="356" width="90" height="160" rx="16" fill="#F8FAFF"/>
+  <rect x="1082" y="356" width="240" height="126" rx="16" fill="#FFFFFF" stroke="#E7EDF5"/>
+  <rect x="1338" y="356" width="124" height="74" rx="16" fill="#FFFDF8" stroke="#F0E6C7"/>
+  <rect x="1338" y="442" width="124" height="74" rx="16" fill="#FFFFFF" stroke="#E7EDF5"/>
+  <text x="964" y="534" fill="#5D6D82" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="700">캘린더 웹: 좌측 내비게이션 + 중앙 캘린더 + 우측 요약 패널</text>
+
+  <rect x="942" y="572" width="554" height="220" rx="22" fill="#F8FAFF" stroke="#E7EDF5"/>
+  <rect x="958" y="588" width="522" height="188" rx="18" fill="#FFFFFF" stroke="#E7EDF5"/>
+  <rect x="976" y="602" width="104" height="160" rx="16" fill="#F8FAFF"/>
+  <rect x="1094" y="602" width="226" height="160" rx="16" fill="#FFFFFF" stroke="#E7EDF5"/>
+  <rect x="1334" y="602" width="128" height="160" rx="16" fill="#F8FAFF"/>
+  <text x="964" y="780" fill="#5D6D82" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="700">채팅 웹: 좌측 세션 목록 + 중앙 대화 + 우측 상태 안내 패널</text>
+</svg>

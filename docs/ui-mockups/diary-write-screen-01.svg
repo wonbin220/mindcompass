@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Mind Compass 일기 작성 화면을 모바일 앱 목업 스타일로 그린 SVG다. -->
+<svg width="390" height="844" viewBox="0 0 390 844" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="390" height="844" fill="#F6F7FB"/>
+
+  <!-- app canvas -->
+  <rect x="18" y="16" width="354" height="812" rx="28" fill="#FFFFFF"/>
+
+  <!-- header -->
+  <path d="M42 58 L34 66 L42 74" stroke="#2C3440" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="150" y="69" fill="#20242C" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="16" font-weight="700">오늘의 기록</text>
+
+  <!-- top helper card -->
+  <rect x="34" y="98" width="322" height="92" rx="18" fill="#F8FAFF" stroke="#E7EDF8"/>
+  <text x="50" y="128" fill="#1E2633" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="17" font-weight="800">하루를 기록해보세요</text>
+  <text x="50" y="150" fill="#758094" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="500">오늘 느낀 감정과 기억에 남는 순간을 적으면</text>
+  <text x="50" y="168" fill="#758094" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="500">AI가 감정 흐름을 함께 정리해드려요.</text>
+
+  <!-- title field -->
+  <text x="34" y="224" fill="#1F2835" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="700">제목</text>
+  <rect x="34" y="236" width="322" height="48" rx="14" fill="#F8FAFC" stroke="#E9EDF3"/>
+  <text x="50" y="266" fill="#9DA7B5" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="500">오늘 하루를 한 문장으로 적어보세요</text>
+
+  <!-- content field -->
+  <text x="34" y="315" fill="#1F2835" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="700">내용</text>
+  <rect x="34" y="327" width="322" height="156" rx="18" fill="#F8FAFC" stroke="#E9EDF3"/>
+  <text x="50" y="357" fill="#4F5A6A" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="500">오늘은 여러 번 마음이 흔들렸다.</text>
+  <text x="50" y="377" fill="#4F5A6A" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="500">해야 할 일은 많았고 집중은 잘되지 않았다.</text>
+  <text x="50" y="397" fill="#4F5A6A" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="500">저녁이 되면서 조금 진정됐지만</text>
+  <text x="50" y="417" fill="#4F5A6A" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="500">하루 종일 불안이 길게 남아 있었다.</text>
+  <text x="294" y="460" fill="#AAB3BF" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="600">4 / 10000</text>
+
+  <!-- primary emotion -->
+  <text x="34" y="516" fill="#1F2835" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="700">대표 감정</text>
+
+  <g>
+    <circle cx="72" cy="554" r="18" fill="#F9E4FB" stroke="#E6B6EE"/>
+    <circle cx="72" cy="554" r="10" fill="#E1A2EC"/>
+    <text x="51" y="584" fill="#7B6991" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="700">불안</text>
+  </g>
+
+  <g>
+    <circle cx="156" cy="554" r="18" fill="#FFF2D5" stroke="#F2D06F"/>
+    <circle cx="156" cy="554" r="10" fill="#FFD645"/>
+    <text x="139" y="584" fill="#7B6991" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="700">걱정</text>
+  </g>
+
+  <g>
+    <circle cx="240" cy="554" r="18" fill="#E8F9E9" stroke="#96D998"/>
+    <circle cx="240" cy="554" r="10" fill="#8BE28B"/>
+    <text x="223" y="584" fill="#7B6991" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="700">안정</text>
+  </g>
+
+  <g opacity="0.45">
+    <circle cx="324" cy="554" r="18" fill="#EDF1F6" stroke="#D9E0E8"/>
+    <circle cx="324" cy="554" r="10" fill="#C5CDD8"/>
+    <text x="306" y="584" fill="#7B8595" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="700">무기력</text>
+  </g>
+
+  <!-- intensity -->
+  <text x="34" y="626" fill="#1F2835" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="700">감정 강도</text>
+  <rect x="34" y="640" width="322" height="52" rx="18" fill="#FFFFFF" stroke="#E9EDF3"/>
+  <rect x="54" y="664" width="250" height="6" rx="3" fill="#E2E7EF"/>
+  <rect x="54" y="664" width="170" height="6" rx="3" fill="#6CA6FF"/>
+  <circle cx="224" cy="667" r="10" fill="#FFFFFF" stroke="#6CA6FF" stroke-width="3"/>
+  <text x="315" y="670" fill="#4D7FE0" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="800">4 / 5</text>
+
+  <!-- tags -->
+  <text x="34" y="721" fill="#1F2835" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="700">감정 태그</text>
+  <rect x="34" y="735" width="74" height="28" rx="14" fill="#FFF8D8"/>
+  <text x="55" y="753" fill="#7A6717" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="700">불안</text>
+  <rect x="116" y="735" width="82" height="28" rx="14" fill="#E9F2FF"/>
+  <text x="135" y="753" fill="#4A7CDC" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="700">예민함</text>
+  <rect x="206" y="735" width="86" height="28" rx="14" fill="#EEF9EF"/>
+  <text x="226" y="753" fill="#4A915B" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="700">지침</text>
+
+  <!-- action buttons -->
+  <rect x="34" y="779" width="322" height="46" rx="23" fill="#5E9BF5"/>
+  <text x="161" y="808" fill="#FFFFFF" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="15" font-weight="700">저장하기</text>
+</svg>

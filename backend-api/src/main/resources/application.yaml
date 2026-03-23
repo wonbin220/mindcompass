@@ -1,0 +1,53 @@
+spring:
+  datasource:
+    # backend-api가 연결할 개발용 PostgreSQL 데이터베이스입니다.
+    url: jdbc:postgresql://${DB_HOST:mindcompass-dev.c2h8ms6ugbuh.us-east-1.rds.amazonaws.com}:${DB_PORT:5432}/${DB_NAME:mindcompass_dev_clean}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      # 스키마 생성은 Flyway가 담당하고 JPA는 검증만 수행합니다.
+      ddl-auto: validate
+    # 트랜잭션 경계를 명확히 하기 위해 OSIV를 비활성화합니다.
+    open-in-view: false
+    # 개발 중에는 실행 SQL을 로그로 확인합니다.
+    show-sql: true
+    properties:
+      hibernate:
+        # SQL 로그를 읽기 쉽게 정렬합니다.
+        format_sql: true
+
+  flyway:
+    # DB 스키마 변경은 Flyway migration으로만 관리합니다.
+    enabled: true
+    locations: classpath:db/migration
+
+logging:
+  level:
+    # Flyway migration 실행 여부를 로그로 자세히 확인합니다.
+    org.flywaydb: DEBUG
+    org.springframework.boot.autoconfigure.flyway: DEBUG
+    com.zaxxer.hikari: info
+
+cloud:
+  aws:
+    region:
+      # 추후 AWS 연동을 위한 기본 리전 설정입니다.
+      static: ap-northeast-2
+    credentials:
+      # 민감한 AWS 값은 환경 변수로 주입합니다.
+      access-key: ${AWS_ACCESS_KEY}
+      secret-key: ${AWS_SECRET_KEY}
+
+app:
+  auth:
+    jwt:
+      # JWT 서명과 만료 시간 설정입니다.
+      secret: ${JWT_SECRET}
+      access-token-minutes: ${JWT_ACCESS_TOKEN_MINUTES:60}
+      refresh-token-days: ${JWT_REFRESH_TOKEN_DAYS:14}
+  ai:
+    # 내부 FastAPI 서버 주소입니다.
+    base-url: ${AI_API_BASE_URL:http://localhost:8001}

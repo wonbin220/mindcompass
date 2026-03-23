@@ -1,0 +1,48 @@
+# 공통 OS/IDE 임시 파일은 Git에 올리지 않는다.
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IntelliJ / VSCode 설정 파일은 개인 환경 차이가 크다.
+.idea/
+.vscode/
+*.iml
+
+# Java / Gradle 빌드 산출물은 재생성 가능하다.
+.gradle/
+build/
+out/
+target/
+
+# Python 캐시와 가상환경은 재생성 가능하다.
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 로컬 환경 변수 파일은 민감 정보가 들어갈 수 있다.
+.env
+.env.*
+*.local
+
+# 임시 텍스트/테스트 파일은 공유 가치가 낮다.
+tmp_*.txt
+
+# PPT 작업 중간 산출물과 미리보기 이미지는 용량만 크고 재생성 가능하다.
+docs/ui-mockups/ppt-export/
+docs/ui-mockups/test-drawing.png
+docs/ui-mockups/major-feature-title-v1.png
+
+# 반복 생성된 발표용 PPT/PNG 초안은 최종본만 남기고 제외한다.
+docs/ui-mockups/*-v*.pptx
+docs/ui-mockups/*-v*.png
+docs/ui-mockups/main-features-*.pptx
+docs/ui-mockups/main-features-*.png
+docs/ui-mockups/major-feature-*.pptx
+docs/ui-mockups/major-feature-*.png
+
+# 발표 자료 자동 생성 스크립트는 임시 작업 성격이라 제외한다.
+scripts/build_major_feature_final_png_and_ppt.ps1
+scripts/build_major_feature_image_slots.ps1
+scripts/build_major_feature_image_slots_v2.ps1
+scripts/build_major_feature_image_slots_v3.ps1

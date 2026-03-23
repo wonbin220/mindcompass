@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Mind Compass 채팅 화면을 모바일 앱 목업 스타일로 그린 SVG다. -->
+<svg width="390" height="844" viewBox="0 0 390 844" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="390" height="844" fill="#F6F7FB"/>
+
+  <rect x="18" y="16" width="354" height="812" rx="28" fill="#FFFFFF"/>
+
+  <!-- header -->
+  <path d="M42 58 L34 66 L42 74" stroke="#2C3440" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="165" y="69" fill="#20242C" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="16" font-weight="700">마음 대화</text>
+  <circle cx="323" cy="64" r="16" fill="#EAF3FF"/>
+  <path d="M317 64H329" stroke="#5E9BF5" stroke-width="2" stroke-linecap="round"/>
+  <path d="M323 58V70" stroke="#5E9BF5" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- top state card -->
+  <rect x="34" y="96" width="322" height="82" rx="18" fill="#F8FAFF" stroke="#E7EDF8"/>
+  <text x="50" y="125" fill="#1E2633" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="17" font-weight="800">오늘 감정 상담</text>
+  <text x="50" y="147" fill="#7C8798" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="500">지금 마음 상태에 따라 일반 응답, 지원형 응답, 안전 안내로 분기돼요.</text>
+
+  <rect x="50" y="155" width="88" height="22" rx="11" fill="#EEF9EF"/>
+  <text x="68" y="170" fill="#4A915B" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="10" font-weight="700">SUPPORTIVE</text>
+
+  <!-- chat area -->
+  <rect x="34" y="194" width="322" height="556" rx="20" fill="#F8FAFC" stroke="#E9EDF3"/>
+  <text x="147" y="221" fill="#99A2B0" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="700">오늘 오후 3:24</text>
+
+  <!-- assistant intro -->
+  <circle cx="58" cy="258" r="14" fill="#E8F1FF"/>
+  <text x="53" y="263" fill="#5E9BF5" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="10" font-weight="800">AI</text>
+  <rect x="80" y="240" width="214" height="68" rx="16" fill="#FFFFFF" stroke="#E7EDF8"/>
+  <text x="96" y="264" fill="#516070" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="500">안녕하세요.</text>
+  <text x="96" y="282" fill="#516070" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="500">오늘 가장 마음에 남는 감정부터</text>
+  <text x="96" y="300" fill="#516070" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="500">천천히 말해주셔도 괜찮아요.</text>
+
+  <!-- user bubble -->
+  <rect x="124" y="332" width="214" height="62" rx="16" fill="#5E9BF5"/>
+  <text x="142" y="356" fill="#FFFFFF" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="500">아무도 없고 너무 힘들어서</text>
+  <text x="142" y="374" fill="#FFFFFF" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="500">버티기 힘들어요.</text>
+
+  <!-- supportive bubble -->
+  <circle cx="58" cy="434" r="14" fill="#EAF7EC"/>
+  <text x="53" y="439" fill="#5A9B6A" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="10" font-weight="800">AI</text>
+  <rect x="80" y="414" width="238" height="104" rx="18" fill="#FFFFFF" stroke="#DDEEE1"/>
+  <text x="96" y="438" fill="#476052" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="600">지금 많이 지치고 버거운 상태로 보여요.</text>
+  <text x="96" y="460" fill="#5E6D61" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="500">오늘을 버티게 한 작은 장면 하나를</text>
+  <text x="96" y="478" fill="#5E6D61" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="500">먼저 함께 떠올려볼까요?</text>
+  <text x="96" y="500" fill="#5E6D61" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="500">혼자 감당하기 어렵다면 믿을 수 있는 사람에게</text>
+  <text x="96" y="518" fill="#5E6D61" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="500">도움을 요청해도 괜찮아요.</text>
+
+  <!-- quick actions -->
+  <rect x="80" y="536" width="98" height="28" rx="14" fill="#FFF8D8"/>
+  <text x="100" y="554" fill="#7A6717" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="700">감정 더 말하기</text>
+  <rect x="186" y="536" width="96" height="28" rx="14" fill="#E9F2FF"/>
+  <text x="208" y="554" fill="#4E7DDD" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="700">일기 다시 보기</text>
+
+  <!-- safety preview block -->
+  <rect x="80" y="586" width="238" height="84" rx="18" fill="#FFF9EC" stroke="#F4E3B0" stroke-dasharray="5 5"/>
+  <text x="96" y="610" fill="#7A5E1A" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="700">위험 신호가 높게 감지되면</text>
+  <text x="96" y="632" fill="#8B7440" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="500">일반 답변 대신 안전 안내 문구가 우선 제공됩니다.</text>
+  <text x="96" y="654" fill="#8B7440" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="600">예: 상담센터, 신뢰할 수 있는 사람에게 도움 요청</text>
+
+  <!-- input area -->
+  <rect x="34" y="766" width="322" height="48" rx="24" fill="#F3F6FA" stroke="#E2E7EF"/>
+  <text x="56" y="795" fill="#A0A8B5" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="500">지금 마음을 이야기해보세요...</text>
+  <circle cx="334" cy="790" r="16" fill="#5E9BF5"/>
+  <path d="M329 790H339" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M334 785V795" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!-- Mind Compass ?쇨린 ?곸꽭 ?붾㈃??紐⑤컮????紐⑹뾽 ?ㅽ??쇰줈 洹몃┛ SVG?? -->
+<svg width="354" height="812" viewBox="18 16 354 812" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="390" height="844" fill="#F6F7FB"/>
+
+  <rect x="18" y="16" width="354" height="812" rx="28" fill="#FFFFFF"/>
+
+  <!-- header -->
+  <path d="M42 58 L34 66 L42 74" stroke="#2C3440" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="150" y="69" fill="#20242C" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="16" font-weight="700">?ㅻ뒛??湲곕줉 遺꾩꽍</text>
+  <circle cx="343" cy="66" r="4" fill="#D7DDE6"/>
+  <circle cx="332" cy="66" r="4" fill="#D7DDE6"/>
+  <circle cx="321" cy="66" r="4" fill="#D7DDE6"/>
+
+  <!-- date and title -->
+  <text x="34" y="116" fill="#8893A2" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="700">2024??5??18???붿슂??/text>
+  <text x="34" y="145" fill="#1F2733" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="24" font-weight="800">?ㅻ뒛 ?섎（??踰꾧굅?좊떎</text>
+
+  <!-- diary body card -->
+  <rect x="34" y="168" width="322" height="136" rx="18" fill="#F8FAFC" stroke="#E9EDF3"/>
+  <text x="50" y="198" fill="#4D5767" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="500">?ㅻ뒛? ?댁빞 ???쇱씠 留롮븯怨?吏묒쨷? ?섎릺吏 ?딆븯??</text>
+  <text x="50" y="218" fill="#4D5767" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="500">?섎（ 醫낆씪 遺덉븞??湲멸쾶 ?댁뼱議뚭퀬 ?묒? ?쇱뿉???덈??덈떎.</text>
+  <text x="50" y="238" fill="#4D5767" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="500">??곸씠 ?섎㈃??議곌툑 吏꾩젙?먯?留??꾩쟾???명빐吏吏???딆븯??</text>
+
+  <rect x="50" y="260" width="74" height="24" rx="12" fill="#FFF8D8"/>
+  <text x="72" y="276" fill="#77630F" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="700">遺덉븞</text>
+  <rect x="132" y="260" width="66" height="24" rx="12" fill="#E9F2FF"/>
+  <text x="152" y="276" fill="#4E7DDD" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="700">?덈?</text>
+  <rect x="206" y="260" width="70" height="24" rx="12" fill="#EEF9EF"/>
+  <text x="227" y="276" fill="#4A915B" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="700">吏移?/text>
+
+  <!-- AI summary card -->
+  <rect x="34" y="322" width="322" height="132" rx="18" fill="#F8FAFF" stroke="#E7EDF8"/>
+  <text x="50" y="352" fill="#1E2633" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="17" font-weight="800">AI 媛먯젙 遺꾩꽍</text>
+  <text x="50" y="375" fill="#7F8A9B" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="700">???媛먯젙 쨌 ANXIOUS</text>
+  <text x="50" y="402" fill="#4C5666" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="500">?섎（ ?꾨컲??遺덉븞??媛뺥븯寃??좎??섏뿀怨?</text>
+  <text x="50" y="422" fill="#4C5666" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="13" font-weight="500">??곸뿉??議곌툑 ?뚮났?섎뒗 ?먮쫫???뺤씤?⑸땲??</text>
+
+  <rect x="263" y="342" width="69" height="24" rx="12" fill="#EBF6EF"/>
+  <text x="280" y="358" fill="#4A915B" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="11" font-weight="700">?좊ː??81%</text>
+
+  <!-- risk card -->
+  <rect x="34" y="472" width="322" height="124" rx="18" fill="#FFF9E9" stroke="#F3E0A1"/>
+  <text x="50" y="503" fill="#58440D" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="17" font-weight="800">二쇱쓽 ?좏샇</text>
+  <text x="50" y="527" fill="#8B742A" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="700">以묒쐞??쨌 SUPPORTIVE RESPONSE</text>
+  <text x="50" y="551" fill="#66573A" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="500">?꾩옱 留롮씠 吏移??곹깭濡?蹂댁뿬??</text>
+  <text x="50" y="569" fill="#66573A" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="500">?쇱옄 媛먮떦?섍린 ?대졄?ㅻ㈃ 誘우쓣 ???덈뒗 ?щ엺?먭쾶</text>
+  <text x="50" y="587" fill="#66573A" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="500">?꾩????붿껌?대낫?몄슂.</text>
+
+  <!-- emotion intensity -->
+  <rect x="34" y="614" width="322" height="80" rx="18" fill="#FFFFFF" stroke="#E9EDF3"/>
+  <text x="50" y="642" fill="#1F2835" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="14" font-weight="700">媛먯젙 媛뺣룄</text>
+  <rect x="50" y="660" width="240" height="6" rx="3" fill="#E2E7EF"/>
+  <rect x="50" y="660" width="176" height="6" rx="3" fill="#5E9BF5"/>
+  <circle cx="226" cy="663" r="10" fill="#FFFFFF" stroke="#5E9BF5" stroke-width="3"/>
+  <text x="305" y="666" fill="#4D7FE0" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="12" font-weight="800">4 / 5</text>
+
+  <!-- CTA buttons -->
+  <rect x="34" y="715" width="322" height="44" rx="22" fill="#5E9BF5"/>
+  <text x="142" y="743" fill="#FFFFFF" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="14" font-weight="700">AI? ????댁뼱媛湲?/text>
+
+  <rect x="34" y="770" width="322" height="44" rx="22" fill="#FFFFFF" stroke="#D8E3F6" stroke-width="2"/>
+  <text x="157" y="798" fill="#5E88D9" font-family="Pretendard, Apple SD Gothic Neo, sans-serif" font-size="14" font-weight="700">湲곕줉 ?섏젙?섍린</text>
+</svg>
+
