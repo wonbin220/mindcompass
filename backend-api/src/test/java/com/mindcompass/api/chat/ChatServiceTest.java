@@ -163,6 +163,27 @@ class ChatServiceTest {
         assertThat(requestCaptor.getValue().mode()).isEqualTo(ResponseMode.EMPATHETIC);
     }
 
+    @Test
+    void sendMessageReturnsFallbackWhenAiOrchestrationFails() throws Exception {
+        User user = createUser(1L);
+        ChatSession session = createSession(10L, user);
+        ChatMessage savedUserMessage = createMessage(100L, session, ChatMessageRole.USER, "오늘은 너무 벅차요.");
+        ChatMessage savedAssistantMessage = createMessage(101L, session, ChatMessageRole.ASSISTANT, "fallback");
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(chatSessionRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(session));
+        when(aiSafetyClient.scoreRisk(any())).thenThrow(new RuntimeException("risk-score timeout"));
+        when(chatMessageRepository.save(any(ChatMessage.class)))
+                .thenReturn(savedUserMessage, savedAssistantMessage);
+
+        SendChatMessageResponse response = chatService.sendMessage(1L, 10L, new SendChatMessageRequest("오늘은 너무 벅차요."));
+
+        assertThat(response.responseType()).isEqualTo("FALLBACK");
+        assertThat(response.assistantReply()).isNotBlank();
+        verify(appMetricsRecorder).incrementChatAiFailure();
+        verify(aiChatClient, never()).generateReply(any());
+    }
+
     private User createUser(Long id) throws Exception {
         User user = User.create("chat@example.com", "encoded-password", "tester");
         setField(user, "id", id);

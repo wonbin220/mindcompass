@@ -98,6 +98,53 @@ class DiaryControllerTest {
     }
 
     @Test
+    void createDiaryReturnsFallbackResponseWhenAiFieldsAreMissing() throws Exception {
+        when(diaryService.createDiary(isNull(), any()))
+                .thenReturn(new DiaryDetailResponse(
+                        11L,
+                        1L,
+                        "AI fallback diary",
+                        "Today was difficult, but I still wrote it down.",
+                        PrimaryEmotion.OVERWHELMED,
+                        5,
+                        List.of(new EmotionTagResponse(PrimaryEmotion.OVERWHELMED, 5, DiaryEmotionSourceType.USER)),
+                        null,
+                        null,
+                        null,
+                        null,
+                        LocalDateTime.of(2026, 3, 22, 12, 0),
+                        LocalDateTime.of(2026, 3, 22, 12, 1),
+                        LocalDateTime.of(2026, 3, 22, 12, 1)
+                ));
+
+        mockMvc.perform(post("/api/v1/diaries")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "AI fallback diary",
+                                  "content": "Today was difficult, but I still wrote it down.",
+                                  "primaryEmotion": "OVERWHELMED",
+                                  "emotionIntensity": 5,
+                                  "writtenAt": "2026-03-22T12:00:00",
+                                  "emotionTags": [
+                                    {
+                                      "emotionCode": "OVERWHELMED",
+                                      "intensity": 5
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.diaryId").value(11))
+                .andExpect(jsonPath("$.title").value("AI fallback diary"))
+                .andExpect(jsonPath("$.primaryEmotion").value("OVERWHELMED"))
+                .andExpect(jsonPath("$.riskLevel").doesNotExist())
+                .andExpect(jsonPath("$.riskScore").doesNotExist())
+                .andExpect(jsonPath("$.riskSignals").doesNotExist())
+                .andExpect(jsonPath("$.recommendedAction").doesNotExist());
+    }
+
+    @Test
     void getDiaryReturnsRiskFields() throws Exception {
         when(diaryService.getDiary(isNull(), eq(10L)))
                 .thenReturn(new DiaryDetailResponse(

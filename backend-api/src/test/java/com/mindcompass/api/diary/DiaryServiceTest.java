@@ -1,6 +1,6 @@
 package com.mindcompass.api.diary;
 
-// DiaryService의 위험도 후처리와 저장 유지 정책을 검증하는 테스트다.
+// Diary 생성 시 저장 우선과 AI fallback 동작을 검증하는 서비스 테스트다.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mindcompass.api.auth.domain.User;
@@ -36,6 +36,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -75,7 +76,7 @@ class DiaryServiceTest {
     @Test
     void createDiaryReturnsRiskFieldsWhenRiskScoreSucceeds() throws Exception {
         User user = createUser(1L);
-        Diary diary = createDiary(11L, user, "아무도 없고 너무 힘들어서 버티기 힘들어요.");
+        Diary diary = createDiary(11L, user, "I felt overwhelmed and isolated today.");
         DiaryAiAnalysis analysis = DiaryAiAnalysis.create(diary);
         List<DiaryEmotion> emotionTags = List.of(
                 DiaryEmotion.create(diary, PrimaryEmotion.OVERWHELMED, 5, DiaryEmotionSourceType.USER)
@@ -88,7 +89,7 @@ class DiaryServiceTest {
                         "OVERWHELMED",
                         5,
                         List.of("OVERWHELMED"),
-                        "많이 버거운 하루로 분석됨",
+                        "High distress with some emotional overload.",
                         BigDecimal.valueOf(0.81)
                 )
         );
@@ -100,21 +101,12 @@ class DiaryServiceTest {
                         "SUPPORTIVE_RESPONSE"
                 )
         );
-        when(diaryAiAnalysisRepository.findByDiaryId(11L)).thenReturn(Optional.empty(), Optional.of(analysis), Optional.of(analysis));
+        when(diaryAiAnalysisRepository.findByDiaryId(11L))
+                .thenReturn(Optional.empty(), Optional.of(analysis), Optional.of(analysis));
         when(diaryAiAnalysisRepository.save(any(DiaryAiAnalysis.class))).thenReturn(analysis);
         when(diaryEmotionRepository.findAllByDiaryIdOrderByCreatedAtAsc(11L)).thenReturn(emotionTags);
 
-        DiaryDetailResponse response = diaryService.createDiary(
-                1L,
-                new CreateDiaryRequest(
-                        "위험도 테스트",
-                        "아무도 없고 너무 힘들어서 버티기 힘들어요.",
-                        PrimaryEmotion.OVERWHELMED,
-                        5,
-                        List.of(new EmotionTagRequest(PrimaryEmotion.OVERWHELMED, 5)),
-                        LocalDateTime.of(2026, 3, 21, 21, 0)
-                )
-        );
+        DiaryDetailResponse response = diaryService.createDiary(1L, createRequest());
 
         assertThat(response.diaryId()).isEqualTo(11L);
         assertThat(response.riskLevel()).isEqualTo("MEDIUM");
@@ -127,6 +119,94 @@ class DiaryServiceTest {
         assertThat(analysisCaptor.getValue().getDiary()).isEqualTo(diary);
     }
 
+    @Test
+    void createDiaryKeepsSavedDiaryWhenAnalysisFails() throws Exception {
+        User user = createUser(1L);
+        Diary diary = createDiary(11L, user, "I barely made it through today.");
+        DiaryAiAnalysis analysis = DiaryAiAnalysis.create(diary);
+        List<DiaryEmotion> emotionTags = List.of(
+                DiaryEmotion.create(diary, PrimaryEmotion.OVERWHELMED, 5, DiaryEmotionSourceType.USER)
+        );
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(diaryRepository.save(any(Diary.class))).thenReturn(diary);
+        when(aiDiaryAnalysisClient.analyze(any())).thenThrow(new RuntimeException("ai timeout"));
+        when(aiSafetyClient.scoreRisk(any())).thenReturn(
+                new AiSafetyClient.RiskScoreResponse(
+                        "MEDIUM",
+                        BigDecimal.valueOf(0.66),
+                        List.of("DISTRESS_ESCALATION"),
+                        "SUPPORTIVE_RESPONSE"
+                )
+        );
+        when(diaryAiAnalysisRepository.findByDiaryId(11L))
+                .thenReturn(Optional.empty(), Optional.of(analysis));
+        when(diaryAiAnalysisRepository.save(any(DiaryAiAnalysis.class))).thenReturn(analysis);
+        when(diaryEmotionRepository.findAllByDiaryIdOrderByCreatedAtAsc(11L)).thenReturn(emotionTags);
+
+        DiaryDetailResponse response = diaryService.createDiary(1L, createRequest());
+
+        assertThat(response.diaryId()).isEqualTo(11L);
+        assertThat(response.title()).isEqualTo("Diary test title");
+        assertThat(response.primaryEmotion()).isEqualTo(PrimaryEmotion.OVERWHELMED);
+        assertThat(response.riskLevel()).isEqualTo("MEDIUM");
+        assertThat(response.recommendedAction()).isEqualTo("SUPPORTIVE_RESPONSE");
+
+        verify(appMetricsRecorder).incrementDiaryAiAnalysisFailure();
+        verify(diaryEmotionRepository, never())
+                .deleteAllByDiaryIdAndSourceType(11L, DiaryEmotionSourceType.AI_ANALYSIS);
+    }
+
+    @Test
+    void createDiaryKeepsSavedDiaryWhenRiskScoringFails() throws Exception {
+        User user = createUser(1L);
+        Diary diary = createDiary(11L, user, "I felt overloaded but managed to write it down.");
+        DiaryAiAnalysis analysis = DiaryAiAnalysis.create(diary);
+        List<DiaryEmotion> emotionTags = List.of(
+                DiaryEmotion.create(diary, PrimaryEmotion.OVERWHELMED, 5, DiaryEmotionSourceType.USER),
+                DiaryEmotion.create(diary, PrimaryEmotion.ANXIOUS, null, DiaryEmotionSourceType.AI_ANALYSIS)
+        );
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(diaryRepository.save(any(Diary.class))).thenReturn(diary);
+        when(aiDiaryAnalysisClient.analyze(any())).thenReturn(
+                new AiDiaryAnalysisClient.AnalyzeDiaryResponse(
+                        "OVERWHELMED",
+                        5,
+                        List.of("OVERWHELMED", "ANXIOUS"),
+                        "Distress is present, but the diary was still captured.",
+                        BigDecimal.valueOf(0.79)
+                )
+        );
+        when(aiSafetyClient.scoreRisk(any())).thenThrow(new RuntimeException("risk timeout"));
+        when(diaryAiAnalysisRepository.findByDiaryId(11L))
+                .thenReturn(Optional.empty(), Optional.of(analysis), Optional.of(analysis));
+        when(diaryAiAnalysisRepository.save(any(DiaryAiAnalysis.class))).thenReturn(analysis);
+        when(diaryEmotionRepository.findAllByDiaryIdOrderByCreatedAtAsc(11L)).thenReturn(emotionTags);
+
+        DiaryDetailResponse response = diaryService.createDiary(1L, createRequest());
+
+        assertThat(response.diaryId()).isEqualTo(11L);
+        assertThat(response.primaryEmotion()).isEqualTo(PrimaryEmotion.OVERWHELMED);
+        assertThat(response.riskLevel()).isNull();
+        assertThat(response.riskScore()).isNull();
+        assertThat(response.recommendedAction()).isNull();
+        assertThat(response.emotionTags()).hasSize(2);
+
+        verify(appMetricsRecorder).incrementDiaryRiskFailure();
+    }
+
+    private CreateDiaryRequest createRequest() {
+        return new CreateDiaryRequest(
+                "Diary test title",
+                "I felt overwhelmed and isolated today.",
+                PrimaryEmotion.OVERWHELMED,
+                5,
+                List.of(new EmotionTagRequest(PrimaryEmotion.OVERWHELMED, 5)),
+                LocalDateTime.of(2026, 3, 21, 21, 0)
+        );
+    }
+
     private User createUser(Long id) throws Exception {
         User user = User.create("diary@example.com", "encoded-password", "tester");
         setField(user, "id", id);
@@ -136,7 +216,7 @@ class DiaryServiceTest {
     private Diary createDiary(Long id, User user, String content) throws Exception {
         Diary diary = Diary.create(
                 user,
-                "위험도 테스트",
+                "Diary test title",
                 content,
                 PrimaryEmotion.OVERWHELMED,
                 5,

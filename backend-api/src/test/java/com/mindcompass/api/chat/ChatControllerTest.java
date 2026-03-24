@@ -113,6 +113,31 @@ class ChatControllerTest {
                 .andExpect(jsonPath("$.responseType").value("SUPPORTIVE"))
                 .andExpect(jsonPath("$.assistantReply").value("지금 많이 지치고 버거운 상태로 느껴져요."));
     }
+
+    @Test
+    void sendMessageReturnsFallbackResponse() throws Exception {
+        when(chatService.sendMessage(isNull(), eq(1L), any()))
+                .thenReturn(new SendChatMessageResponse(
+                        1L,
+                        100L,
+                        101L,
+                        "지금은 답변을 준비하지 못했어요. 잠시 후 다시 시도해 주세요.",
+                        "FALLBACK"
+                ));
+
+        mockMvc.perform(post("/api/v1/chat/sessions/1/messages")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "오늘은 너무 벅차요."
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.sessionId").value(1))
+                .andExpect(jsonPath("$.responseType").value("FALLBACK"))
+                .andExpect(jsonPath("$.assistantReply").value("지금은 답변을 준비하지 못했어요. 잠시 후 다시 시도해 주세요."));
+    }
+
     @Test
     void sendMessageReturnsBadRequestWhenMessageIsBlank() throws Exception {
         mockMvc.perform(post("/api/v1/chat/sessions/1/messages")
