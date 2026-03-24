@@ -117,3 +117,26 @@ Report API는 ai-api를 직접 호출하지 않는다.
 ## 10. 최근 UI 연동 메모
 - 웹 리포트 화면에서 기준 날짜 input으로 주간 감정 추이를 바꿀 수 있다.
 - 월간 위험도 추이 카드는 내부 스크롤을 두어 긴 리스트가 화면을 과도하게 늘리지 않도록 했다.
+
+## 11. Diary AI 결과 노출 원칙
+
+Report 화면은 Diary 상세와 다르게 개별 기록 해석보다 기간 집계 인사이트에 집중해야 한다.
+
+현재 MVP 기준 원칙:
+- 월간 요약
+  - 유지: `diaryCount`, `averageEmotionIntensity`, `topPrimaryEmotions`, `riskSummary`
+  - 보류: 개별 diary의 `aiSummary` 목록 노출
+- 주간 감정 추이
+  - 유지: 날짜별 `primaryEmotion`, `averageEmotionIntensity`, `diaryCount`
+  - 보류: 날짜별 `aiSummary` 문장 노출
+- 월간 위험도 추이
+  - 유지: `mediumCount`, `highCount`
+  - 유지 이유: risk-score는 Safety Net 관점에서 리포트 집계에 직접 의미가 있다
+
+이렇게 정하는 이유:
+- Report는 사용자가 “이번 달의 흐름”을 이해하는 화면이지, 개별 문장을 길게 읽는 화면이 아니다.
+- `aiSummary`를 여러 건 나열하면 report보다 diary 모음집처럼 느껴질 수 있다.
+- Safety 관련 집계는 리포트에 남겨도 되지만, 해석 문장 자체는 diary 상세로 남기는 편이 안전하다.
+
+즉 Report는 감정 빈도, 평균 강도, 위험도 추이 같은 집계형 AI 결과는 보여주고,
+개별 diary 단위의 `aiSummary`는 MVP 범위에서는 노출하지 않는 것이 좋다.

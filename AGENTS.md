@@ -19,7 +19,8 @@ Before making changes, read the following files when relevant:
 ## Repository architecture
 This project uses a 2-server architecture:
 - `backend-api` = Spring Boot public API server
-- `ai-api` = FastAPI internal AI inference server
+- `ai-api` = Spring AI internal AI inference server
+- `ai-api-fastapi` = FastAPI comparison AI inference server
 
 Core rule:
 - The mobile app must call Spring Boot only.
@@ -48,6 +49,12 @@ Responsible for:
 - RAG context assembly
 - future experimental inference features
 
+### ai-api-fastapi
+Responsible for:
+- keeping the legacy FastAPI implementation available for comparison
+- matching the same internal contracts where practical
+- supporting side-by-side inference experiments
+
 ## MVP priorities
 Unless explicitly told otherwise, prioritize work in this order:
 1. Spring Boot foundation
@@ -67,6 +74,7 @@ Unless explicitly told otherwise, prioritize work in this order:
 - Prefer project structure and technology choices that improve readability and maintainability for developers.
 - Keep the public API boundary in Spring Boot.
 - Keep ai-api as an internal inference service.
+- Keep ai-api-fastapi as a comparison target, not a mobile-facing server.
 - Storage, retrieval, and safety come before advanced AI features.
 - AI failures must not break the whole product flow.
 - Mental health flows require safety-first thinking.
@@ -145,3 +153,5 @@ Prefer these skills when relevant:
 - `create-spring-api-doc`
 - `create-fastapi-internal-endpoint`
 - `generate-erd-and-sql`
+
+

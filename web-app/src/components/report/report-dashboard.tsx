@@ -1,6 +1,6 @@
 "use client";
 
-// 월간 요약, 주간 감정 추이, 월간 위험도 추이를 보여주는 리포트 컴포넌트다.
+// 리포트 화면은 기간 집계 중심 인사이트를 보여주고 개별 AI 요약 문장은 노출하지 않습니다.
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -119,14 +119,34 @@ export function ReportDashboard() {
           <div className="text-3xl font-semibold text-[var(--text-strong)]">
             {isLoading ? "-" : monthlySummary?.riskSummary.highCount ?? 0}
           </div>
-          <p className="mt-2 text-sm text-[var(--text-muted)]">SAFETY 대응 필요 건수</p>
+          <p className="mt-2 text-sm text-[var(--text-muted)]">SAFETY 대응이 필요한 건수</p>
         </ScreenCard>
       </div>
+
+      <ScreenCard
+        title="리포트 노출 원칙"
+        description="이 화면은 개별 diary의 aiSummary를 보여주지 않고, 기간 집계 결과만 보여줍니다."
+      >
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-[var(--text-muted)]">
+            <p className="font-semibold text-[var(--text-strong)]">월간 요약</p>
+            <p className="mt-2">기록 수, 평균 강도, 상위 감정, 위험도 집계만 노출합니다.</p>
+          </div>
+          <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-[var(--text-muted)]">
+            <p className="font-semibold text-[var(--text-strong)]">주간 추이</p>
+            <p className="mt-2">날짜별 감정 흐름과 평균 강도만 보여주고 문장형 AI 요약은 제외합니다.</p>
+          </div>
+          <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-[var(--text-muted)]">
+            <p className="font-semibold text-[var(--text-strong)]">월간 위험도</p>
+            <p className="mt-2">Safety Net 관점에서 중위험/고위험 건수 추이만 유지합니다.</p>
+          </div>
+        </div>
+      </ScreenCard>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <ScreenCard
           title="주간 감정 추이"
-          description="선택한 날짜를 포함한 최근 7일 감정 흐름을 날짜별 카드로 보여줍니다."
+          description="선택 날짜를 포함한 최근 7일의 감정 흐름을 집계 카드로 보여줍니다."
         >
           <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-[var(--line-soft)] bg-[#fcfaf6] p-3 md:flex-row md:items-center md:justify-between">
             <div>
@@ -134,7 +154,7 @@ export function ReportDashboard() {
               <p className="mt-1 text-xs text-[var(--text-muted)]">
                 {weeklyTrend
                   ? `${weeklyTrend.startDate} ~ ${weeklyTrend.endDate}`
-                  : "선택 날짜를 기준으로 앞뒤 일주일 흐름을 보여줍니다."}
+                  : "선택 날짜를 기준으로 최근 7일 집계를 불러옵니다."}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -184,7 +204,7 @@ export function ReportDashboard() {
 
             {!isLoading && (weeklyTrend?.items.length ?? 0) === 0 ? (
               <div className="rounded-2xl border border-dashed border-[var(--line-soft)] bg-white px-4 py-5 text-sm text-[var(--text-muted)]">
-                선택한 기간의 기록이 없습니다.
+                선택한 기간에는 기록이 없습니다.
               </div>
             ) : null}
           </div>
@@ -244,8 +264,8 @@ export function ReportDashboard() {
       </div>
 
       <ScreenCard
-        title="대표 감정"
-        description="월간 요약 응답의 상위 감정 빈도를 그대로 보여줍니다."
+        title="상위 감정"
+        description="월간 요약 응답의 상위 감정 빈도만 집계해서 보여줍니다."
       >
         <div className="flex flex-wrap gap-3">
           {(monthlySummary?.topPrimaryEmotions ?? []).map((emotion) => (
@@ -253,12 +273,12 @@ export function ReportDashboard() {
               key={emotion.emotion}
               className="rounded-2xl bg-[var(--accent-soft)] px-4 py-3 text-sm font-medium text-[var(--text-strong)]"
             >
-              {emotion.emotion} / {emotion.count}회
+              {emotion.emotion} / {emotion.count}건
             </div>
           ))}
 
           {!isLoading && (monthlySummary?.topPrimaryEmotions.length ?? 0) === 0 ? (
-            <span className="text-sm text-[var(--text-muted)]">대표 감정 데이터가 없습니다.</span>
+            <span className="text-sm text-[var(--text-muted)]">상위 감정 데이터가 없습니다.</span>
           ) : null}
         </div>
       </ScreenCard>

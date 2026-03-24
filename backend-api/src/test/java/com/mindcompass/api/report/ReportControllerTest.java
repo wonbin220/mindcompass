@@ -68,6 +68,7 @@ class ReportControllerTest {
                 .andExpect(jsonPath("$.month").value(3))
                 .andExpect(jsonPath("$.diaryCount").value(12))
                 .andExpect(jsonPath("$.topPrimaryEmotions[0].emotion").value("ANXIOUS"))
+                .andExpect(jsonPath("$.aiSummary").doesNotExist())
                 .andExpect(jsonPath("$.riskSummary.mediumCount").value(2))
                 .andExpect(jsonPath("$.riskSummary.highCount").value(1));
     }
@@ -89,6 +90,7 @@ class ReportControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.startDate").value("2026-03-18"))
                 .andExpect(jsonPath("$.items[0].hasDiary").value(false))
+                .andExpect(jsonPath("$.items[0].aiSummary").doesNotExist())
                 .andExpect(jsonPath("$.items[1].primaryEmotion").value("CALM"));
     }
 
@@ -127,6 +129,7 @@ class ReportControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.year").value(2026))
+                .andExpect(jsonPath("$.items[1].aiSummary").doesNotExist())
                 .andExpect(jsonPath("$.items[1].mediumCount").value(1))
                 .andExpect(jsonPath("$.items[1].highCount").value(1));
     }

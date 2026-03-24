@@ -49,8 +49,12 @@ app:
       access-token-minutes: ${JWT_ACCESS_TOKEN_MINUTES:60}
       refresh-token-days: ${JWT_REFRESH_TOKEN_DAYS:14}
   ai:
-    # 내부 FastAPI 서버 주소입니다.
-    base-url: ${AI_API_BASE_URL:http://localhost:8001}
+    # backend-api가 우선 사용할 내부 AI 구현체입니다.
+    provider: ${AI_PROVIDER:spring-ai}
+    # Spring AI 기반 ai-api 주소입니다. 기존 AI_API_BASE_URL은 여전히 기본값으로 허용합니다.
+    spring-base-url: ${AI_API_SPRING_BASE_URL:${AI_API_BASE_URL:http://localhost:8001}}
+    # FastAPI 비교 서버 주소입니다.
+    fastapi-base-url: ${AI_API_FASTAPI_BASE_URL:http://localhost:8002}
   web:
     # 웹 프론트 로컬 개발 서버에서 호출할 origin 목록입니다.
     allowed-origins: ${WEB_ALLOWED_ORIGINS:http://localhost:3000}

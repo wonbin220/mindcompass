@@ -1,6 +1,12 @@
-﻿# Mind Compass ai-api 학습 문서 모음
+# Mind Compass ai-api 학습 문서 모음
 
-이 폴더는 `ai-api`(FastAPI) 기준의 학습 문서를 모아둔 곳이다.
+이 폴더는 원래 `ai-api`(FastAPI) 기준으로 작성된 학습 문서를 모아둔 곳이다.
+
+현재 레포 구조:
+- `ai-api` = Spring AI 기반 내부 AI 서버
+- `ai-api-fastapi` = 기존 FastAPI 내부 AI 서버
+
+즉, 이 문서들은 지금은 주로 `ai-api-fastapi` 구현을 이해하는 참고 자료로 보면 된다.
 
 이 문서들의 목적:
 1. ai-api의 각 내부 AI 엔드포인트가 왜 필요한지 이해한다.
@@ -16,6 +22,7 @@
 - `RISK_SCORE_API_LEARNING.md`
 - `GENERATE_REPLY_API_LEARNING.md`
 - `RAG_CONTEXT_API_LEARNING.md`
+- `SPRING_AI_INTEGRATION_STRATEGY.md`
 
 권장 읽는 순서:
 1. AI_API_OVERVIEW_LEARNING.md
@@ -56,3 +63,4 @@ Codex에게 ai-api 작업을 시킬 때는 이렇게 요청하면 좋다.
 - 관련 학습 문서를 읽고
 - 왜 이 내부 API가 필요한지와
 - 어떤 파일이 어떤 순서로 실행되는지까지 같이 설명해달라고 요청한다.
+

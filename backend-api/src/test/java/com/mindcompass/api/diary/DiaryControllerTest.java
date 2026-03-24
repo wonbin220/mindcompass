@@ -61,6 +61,10 @@ class DiaryControllerTest {
                         "아무도 없고 너무 힘들어서 버티기 힘들어요.",
                         PrimaryEmotion.OVERWHELMED,
                         5,
+                        "OVERWHELMED",
+                        5,
+                        "High distress with isolation signs.",
+                        BigDecimal.valueOf(0.81),
                         List.of(
                                 new EmotionTagResponse(PrimaryEmotion.OVERWHELMED, 5, DiaryEmotionSourceType.USER),
                                 new EmotionTagResponse(PrimaryEmotion.ANXIOUS, 4, DiaryEmotionSourceType.AI_ANALYSIS)
@@ -93,6 +97,9 @@ class DiaryControllerTest {
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.diaryId").value(10))
+                .andExpect(jsonPath("$.aiPrimaryEmotion").value("OVERWHELMED"))
+                .andExpect(jsonPath("$.aiSummary").value("High distress with isolation signs."))
+                .andExpect(jsonPath("$.aiConfidence").value(0.81))
                 .andExpect(jsonPath("$.riskLevel").value("MEDIUM"))
                 .andExpect(jsonPath("$.recommendedAction").value("SUPPORTIVE_RESPONSE"));
     }
@@ -107,6 +114,10 @@ class DiaryControllerTest {
                         "Today was difficult, but I still wrote it down.",
                         PrimaryEmotion.OVERWHELMED,
                         5,
+                        null,
+                        null,
+                        null,
+                        null,
                         List.of(new EmotionTagResponse(PrimaryEmotion.OVERWHELMED, 5, DiaryEmotionSourceType.USER)),
                         null,
                         null,
@@ -138,6 +149,9 @@ class DiaryControllerTest {
                 .andExpect(jsonPath("$.diaryId").value(11))
                 .andExpect(jsonPath("$.title").value("AI fallback diary"))
                 .andExpect(jsonPath("$.primaryEmotion").value("OVERWHELMED"))
+                .andExpect(jsonPath("$.aiPrimaryEmotion").doesNotExist())
+                .andExpect(jsonPath("$.aiSummary").doesNotExist())
+                .andExpect(jsonPath("$.aiConfidence").doesNotExist())
                 .andExpect(jsonPath("$.riskLevel").doesNotExist())
                 .andExpect(jsonPath("$.riskScore").doesNotExist())
                 .andExpect(jsonPath("$.riskSignals").doesNotExist())
@@ -154,6 +168,10 @@ class DiaryControllerTest {
                         "다 끝내고 싶고 사라지고 싶어요.",
                         PrimaryEmotion.OVERWHELMED,
                         5,
+                        "HOPELESS",
+                        5,
+                        "Hopelessness and withdrawal are prominent.",
+                        BigDecimal.valueOf(0.93),
                         List.of(new EmotionTagResponse(PrimaryEmotion.OVERWHELMED, 5, DiaryEmotionSourceType.USER)),
                         "HIGH",
                         BigDecimal.valueOf(0.95),
@@ -167,6 +185,8 @@ class DiaryControllerTest {
         mockMvc.perform(get("/api/v1/diaries/10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.diaryId").value(10))
+                .andExpect(jsonPath("$.aiPrimaryEmotion").value("HOPELESS"))
+                .andExpect(jsonPath("$.aiSummary").value("Hopelessness and withdrawal are prominent."))
                 .andExpect(jsonPath("$.riskLevel").value("HIGH"))
                 .andExpect(jsonPath("$.recommendedAction").value("SAFETY_RESPONSE"));
     }
@@ -181,6 +201,10 @@ class DiaryControllerTest {
                         "오늘은 조금 진정됐어요.",
                         PrimaryEmotion.CALM,
                         2,
+                        "CALM",
+                        2,
+                        "The entry shows a steadier emotional state.",
+                        BigDecimal.valueOf(0.74),
                         List.of(new EmotionTagResponse(PrimaryEmotion.CALM, 2, DiaryEmotionSourceType.USER)),
                         "LOW",
                         BigDecimal.valueOf(0.15),

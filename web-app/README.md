@@ -54,6 +54,7 @@ NEXT_PUBLIC_BACKEND_API_BASE_URL=http://localhost:8080
 - 상태:
   - 연결됨
   - 작성 후 상세 조회를 다시 호출해 AI 분석 / 위험도 결과를 화면에 반영
+  - diary 상세 응답의 `aiPrimaryEmotion`, `aiEmotionIntensity`, `aiSummary`, `aiConfidence`까지 표시하도록 계약 반영
 
 ### 3. Calendar
 - 화면: `src/app/calendar/page.tsx`
@@ -112,3 +113,8 @@ NEXT_PUBLIC_BACKEND_API_BASE_URL=http://localhost:8080
 1. 브라우저에서 `login -> diary -> calendar -> chat -> report` 순서로 실제 호출 확인
 2. 필요 시 각 화면에 로딩 / 에러 / 빈 상태 문구를 더 다듬기
 3. 모바일 연동 전에 웹 기준 API 응답 필드 누락 여부 점검
+
+## Report 화면 계약 메모
+- report 화면은 개별 diary의 `aiSummary`를 직접 표시하지 않는다.
+- 월간 요약, 주간 감정 추이, 월간 위험도처럼 집계형 통계만 표시한다.
+- 문장형 AI 해석은 diary 상세 화면에서 확인하는 흐름을 유지한다.

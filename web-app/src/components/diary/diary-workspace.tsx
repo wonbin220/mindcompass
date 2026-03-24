@@ -1,6 +1,6 @@
 "use client";
 
-// 일기 작성과 저장 직후 상세/AI 분석 결과 확인을 담당하는 컴포넌트다.
+// 일기 작성과 AI 분석 결과 확인을 함께 처리하는 컴포넌트입니다.
 import { FormEvent, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
@@ -92,8 +92,8 @@ export function DiaryWorkspace() {
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-[var(--text-strong)]">일기 작성</h2>
           <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">
-            `POST /api/v1/diaries`를 호출해 기록을 저장하고, 저장 직후 상세 결과를 다시
-            불러옵니다.
+            `POST /api/v1/diaries`로 기록을 저장하고, 저장 직후 `GET /api/v1/diaries/{'{'}diaryId{'}'}`
+            로 상세 결과를 다시 불러옵니다.
           </p>
         </div>
 
@@ -186,10 +186,9 @@ export function DiaryWorkspace() {
 
       <section className="rounded-[28px] border border-[var(--line-soft)] bg-[var(--surface)] p-5 shadow-[var(--panel-shadow)]">
         <div className="mb-4">
-          <h2 className="text-lg font-semibold text-[var(--text-strong)]">저장 후 상세 결과</h2>
+          <h2 className="text-lg font-semibold text-[var(--text-strong)]">저장된 상세 결과</h2>
           <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">
-            `GET /api/v1/diaries/{'{'}diaryId{'}'}` 응답에서 AI 분석과 위험도 필드를 함께
-            보여줍니다.
+            diary 상세 응답에서 사용자 입력 감정과 AI 분석 감정, 위험도 필드를 함께 확인합니다.
           </p>
         </div>
 
@@ -212,17 +211,38 @@ export function DiaryWorkspace() {
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="rounded-2xl bg-white p-4">
-                <p className="text-sm text-[var(--text-muted)]">대표 감정</p>
+                <p className="text-sm text-[var(--text-muted)]">사용자 대표 감정</p>
                 <p className="mt-2 text-lg font-semibold text-[var(--text-strong)]">
                   {createdDiary.primaryEmotion ?? "-"}
                 </p>
               </div>
               <div className="rounded-2xl bg-white p-4">
-                <p className="text-sm text-[var(--text-muted)]">감정 강도</p>
+                <p className="text-sm text-[var(--text-muted)]">사용자 감정 강도</p>
                 <p className="mt-2 text-lg font-semibold text-[var(--text-strong)]">
                   {createdDiary.emotionIntensity ?? "-"}
                 </p>
               </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl bg-white p-4">
+                <p className="text-sm text-[var(--text-muted)]">AI 대표 감정</p>
+                <p className="mt-2 text-lg font-semibold text-[var(--text-strong)]">
+                  {createdDiary.aiPrimaryEmotion ?? "-"}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white p-4">
+                <p className="text-sm text-[var(--text-muted)]">AI 감정 강도</p>
+                <p className="mt-2 text-lg font-semibold text-[var(--text-strong)]">
+                  {createdDiary.aiEmotionIntensity ?? "-"}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-[var(--text-muted)]">
+              <p className="font-semibold text-[var(--text-strong)]">AI 감정 요약</p>
+              <p className="mt-2">{createdDiary.aiSummary ?? "AI 분석 요약이 아직 없습니다."}</p>
+              <p className="mt-2">aiConfidence: {createdDiary.aiConfidence ?? "-"}</p>
             </div>
 
             <div className="rounded-2xl bg-white p-4">
@@ -251,8 +271,8 @@ export function DiaryWorkspace() {
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-[var(--line-soft)] bg-white p-6 text-sm leading-6 text-[var(--text-muted)]">
-            아직 저장한 일기가 없습니다. 왼쪽 폼으로 일기를 저장하면 이 영역에서 상세 결과를
-            바로 확인할 수 있습니다.
+            아직 저장한 일기가 없습니다. 왼쪽 폼으로 일기를 저장하면 이 영역에서 AI 분석과 위험도
+            결과까지 바로 확인할 수 있습니다.
           </div>
         )}
       </section>

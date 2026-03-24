@@ -113,6 +113,10 @@ class DiaryServiceTest {
         assertThat(response.riskScore()).isEqualByComparingTo("0.65");
         assertThat(response.recommendedAction()).isEqualTo("SUPPORTIVE_RESPONSE");
         assertThat(response.riskSignals()).contains("DISTRESS_ESCALATION");
+        assertThat(response.aiPrimaryEmotion()).isEqualTo("OVERWHELMED");
+        assertThat(response.aiEmotionIntensity()).isEqualTo(5);
+        assertThat(response.aiSummary()).isEqualTo("High distress with some emotional overload.");
+        assertThat(response.aiConfidence()).isEqualByComparingTo("0.81");
 
         ArgumentCaptor<DiaryAiAnalysis> analysisCaptor = ArgumentCaptor.forClass(DiaryAiAnalysis.class);
         verify(diaryAiAnalysisRepository).save(analysisCaptor.capture());
@@ -149,6 +153,8 @@ class DiaryServiceTest {
         assertThat(response.diaryId()).isEqualTo(11L);
         assertThat(response.title()).isEqualTo("Diary test title");
         assertThat(response.primaryEmotion()).isEqualTo(PrimaryEmotion.OVERWHELMED);
+        assertThat(response.aiPrimaryEmotion()).isNull();
+        assertThat(response.aiSummary()).isNull();
         assertThat(response.riskLevel()).isEqualTo("MEDIUM");
         assertThat(response.recommendedAction()).isEqualTo("SUPPORTIVE_RESPONSE");
 
@@ -188,6 +194,10 @@ class DiaryServiceTest {
 
         assertThat(response.diaryId()).isEqualTo(11L);
         assertThat(response.primaryEmotion()).isEqualTo(PrimaryEmotion.OVERWHELMED);
+        assertThat(response.aiPrimaryEmotion()).isEqualTo("OVERWHELMED");
+        assertThat(response.aiEmotionIntensity()).isEqualTo(5);
+        assertThat(response.aiSummary()).isEqualTo("Distress is present, but the diary was still captured.");
+        assertThat(response.aiConfidence()).isEqualByComparingTo("0.79");
         assertThat(response.riskLevel()).isNull();
         assertThat(response.riskScore()).isNull();
         assertThat(response.recommendedAction()).isNull();

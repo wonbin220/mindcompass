@@ -40,6 +40,10 @@ export type DiaryDetailResponse = {
   content: string;
   primaryEmotion: PrimaryEmotion | null;
   emotionIntensity: number | null;
+  aiPrimaryEmotion: PrimaryEmotion | null;
+  aiEmotionIntensity: number | null;
+  aiSummary: string | null;
+  aiConfidence: number | null;
   emotionTags: EmotionTagResponse[];
   riskLevel: string | null;
   riskScore: number | null;

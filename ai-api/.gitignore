@@ -1,7 +1,5 @@
-# Python 실행 캐시와 가상환경 산출물을 제외한다.
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.venv/
+.gradle/
+build/
+out/
+.idea/
+*.iml

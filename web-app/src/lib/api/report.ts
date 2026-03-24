@@ -1,4 +1,4 @@
-// 리포트 조회 API를 웹 프론트에서 호출하는 클라이언트 파일이다.
+// 리포트 화면은 개별 AI 요약이 아니라 집계형 통계만 다루는 API 타입 파일입니다.
 import { apiGet } from "@/lib/api/http";
 
 export type EmotionCountResponse = {

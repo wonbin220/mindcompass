@@ -1,0 +1,24 @@
+# Spring AI 비교용 내부 서버 설정 파일입니다.
+server:
+  port: ${AI_API_PORT:8001}
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  application:
+    name: ai-api
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:test-key}
+      chat:
+        options:
+          model: ${SPRING_AI_OPENAI_MODEL:gpt-4o-mini}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
