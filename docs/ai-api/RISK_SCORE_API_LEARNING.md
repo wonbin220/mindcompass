@@ -260,3 +260,63 @@ LLM 분류 프롬프트 구성
 ## MEDIUM 테스트 문장 예시
 - `"아무도 없고 너무 힘들어서 버티기 힘들어요."`
 - `"혼자라서 너무 힘들고 버티기 힘들어요."`
+
+---
+
+# 15. Spring AI 비교 서버 기준 현재 구조
+
+현재 `ai-api`의 `risk-score`는 단순 규칙 기반만 쓰지 않고,
+아래 순서로 동작하도록 정리했다.
+
+1. Spring Boot가 `POST /internal/ai/risk-score`를 호출한다.
+2. `SafetyAiController`가 요청을 받는다.
+3. `RiskScoreService`가 먼저 Spring AI 프롬프트 분류를 시도한다.
+4. 모델 응답이 계약에 맞는 JSON이면 그 값을 그대로 사용한다.
+5. 모델 응답이 비어 있거나 JSON 파싱에 실패하면 규칙 기반 fallback으로 내려간다.
+6. 최종적으로 `RiskScoreResponse`를 Spring Boot에 반환한다.
+
+즉 현재 구조는:
+
+- 1차: Spring AI 프롬프트 시도
+- 2차: 구조화 JSON 파싱
+- 실패 시: 안전한 규칙 기반 fallback
+
+이렇게 되어 있다.
+
+## 왜 이렇게 바꿨는가
+
+비교 목적상 `ai-api`도 실제 모델 시도를 해봐야
+나중에 `ai-api-fastapi`와 응답 품질, 유지보수성, fallback 안정성을 비교할 수 있다.
+
+하지만 멘탈헬스 서비스에서는 위험 분류 실패가 치명적일 수 있으므로,
+프롬프트 실패 때문에 전체 흐름이 깨지지 않도록 fallback을 반드시 유지한다.
+
+## 현재 코드 기준 역할
+
+- `SafetyAiController`
+  - 내부 `/risk-score` 엔드포인트 진입점
+- `RiskScoreService`
+  - 프롬프트 시도
+  - JSON 파싱
+  - fallback 분기
+  - 최종 응답 생성
+- `RiskScorePromptClient`
+  - 프롬프트 호출 인터페이스
+- `SpringRiskScorePromptClient`
+  - Spring AI `ChatClient` 기반 실제 호출 구현
+
+## 현재 fallback 원칙
+
+- 입력 텍스트가 비어 있으면 `LOW` / `NORMAL_RESPONSE`
+- 프롬프트 응답이 비어 있거나 계약에 맞지 않으면 규칙 기반 분류
+- 규칙 기반에서도
+  - 고위험 표현은 `HIGH` / `SAFETY_RESPONSE`
+  - 중위험 표현은 `MEDIUM` / `SUPPORTIVE_RESPONSE`
+  - 그 외는 `LOW` / `NORMAL_RESPONSE`
+
+## 현재 테스트 포인트
+
+- 프롬프트가 정상 JSON을 반환하면 그 값을 그대로 반영하는지
+- 프롬프트 응답이 깨졌을 때 fallback으로 내려가는지
+- 프롬프트 클라이언트가 없을 때도 fallback이 유지되는지
+- 빈 입력에서 낮은 위험 기본값을 주는지

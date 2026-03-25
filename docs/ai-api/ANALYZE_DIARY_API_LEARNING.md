@@ -200,3 +200,20 @@ LLM에게 보낼 프롬프트를 정리한다.
 ## 운영 메모
 - analyze-diary 실패는 diary 저장 실패보다 우선순위가 낮다.
 - 운영 중 장애가 나도 기록 기능을 막지 않는 것이 현재 MVP 원칙이다.
+
+---
+
+# 13. Spring AI 비교 서버 기준 현재 구조
+
+현재 `ai-api`(Spring AI)는 analyze-diary를 아래 순서로 처리한다.
+
+1. `DiaryAiController`가 `/internal/ai/analyze-diary` 요청을 받는다.
+2. `DiaryAnalysisService`가 먼저 Spring AI 프롬프트 호출을 시도한다.
+3. `SpringDiaryAnalysisPromptClient`가 `ChatClient`로 JSON 전용 응답을 요청한다.
+4. 서비스가 `primaryEmotion`, `emotionIntensity`, `emotionTags`, `summary`, `confidence`를 구조화 파싱한다.
+5. 모델 응답 파싱이 실패하거나 모델 호출이 불가능하면 규칙 기반 fallback으로 내려간다.
+
+즉 현재 Spring AI 비교 서버의 핵심은:
+- 가능하면 프롬프트 기반 분석 시도
+- 실패해도 backend-api 계약은 깨지지 않게 fallback 유지
+- FastAPI와 비교할 수 있도록 결과 형식을 동일 계약으로 맞춤
