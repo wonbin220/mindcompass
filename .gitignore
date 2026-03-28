@@ -47,3 +47,7 @@ scripts/build_major_feature_image_slots.ps1
 scripts/build_major_feature_image_slots_v2.ps1
 scripts/build_major_feature_image_slots_v3.ps1
 scripts/
+
+# Slide and UI mockup working assets are local-only outputs.
+docs/slides/
+docs/ui-mockups/
