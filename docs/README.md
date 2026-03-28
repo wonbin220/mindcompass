@@ -11,7 +11,7 @@
 - `DB_TABLE_SPECIFICATION.md`
 - `sql/erdcloud_current_schema.sql`
 - `OPERATIONS_GUIDE.md`
-- `MOBILE_INTEGRATION_HANDOFF.md`
+- `MOBILE_INTEGRATION_HANDOFF.md` (legacy filename, now used as responsive web integration handoff)
 - `SCREEN_TO_API_MAPPING.md`
 
 이 문서들의 목적:
@@ -52,3 +52,7 @@
 - 패키지 설치
 - 실제 `backend-api` API 클라이언트 연결
 - shadcn/ui 컴포넌트 실생성
+
+중요 원칙:
+- 반응형 웹은 `backend-api`만 호출한다.
+- `ai-api`와 `ai-api-fastapi`는 내부 서버 계층으로만 사용한다.
