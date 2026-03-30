@@ -1,0 +1,1148 @@
+﻿{
+  "info": {
+    "_postman_id": "2d5d8d5a-8adf-4a17-9ff6-3a0f3c5d5b11",
+    "name": "마인드 컴패스 API",
+    "description": "Mind Compass backend-api Postman collection with smoke tests, token persistence, id persistence, and failure cases. Recommended run order: Auth -> Users -> Diaries -> Calendar -> Chat -> Reports -> Failure Cases -> Cleanup.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "diaryId",
+      "value": ""
+    },
+    {
+      "key": "sessionId",
+      "value": ""
+    },
+    {
+      "key": "today",
+      "value": "2026-03-29"
+    },
+    {
+      "key": "year",
+      "value": "2026"
+    },
+    {
+      "key": "month",
+      "value": "3"
+    },
+    {
+      "key": "invalidAccessToken",
+      "value": "invalid-token"
+    },
+    {
+      "key": "missingDiaryId",
+      "value": "999999"
+    },
+    {
+      "key": "missingSessionId",
+      "value": "999999"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. 인증",
+      "item": [
+        {
+          "name": "회원가입",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nickname\": \"minduser\",\n  \"email\": \"user@example.com\",\n  \"password\": \"Abcd1234!\",\n  \"personalInfoConsentAgreed\": true,\n  \"serviceTermsAgreed\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "signup"
+              ]
+            },
+            "description": "Sign up API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201 Created', function () { pm.response.to.have.status(201); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Signup response has identity fields', function () {",
+                  "  pm.expect(data).to.be.an('object');",
+                  "  pm.expect(data.userId || data.id).to.exist;",
+                  "  pm.expect(data.email).to.exist;",
+                  "  pm.expect(data.nickname).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "로그인",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Abcd1234!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "if (data.accessToken) { pm.environment.set('accessToken', data.accessToken); pm.collectionVariables.set('accessToken', data.accessToken); }",
+                  "if (data.refreshToken) { pm.environment.set('refreshToken', data.refreshToken); pm.collectionVariables.set('refreshToken', data.refreshToken); }",
+                  "pm.test('Login response has tokens', function () {",
+                  "  pm.expect(data.accessToken).to.exist;",
+                  "  pm.expect(data.refreshToken).to.exist;",
+                  "});",
+                  "pm.test('Access token saved', function () { pm.expect(pm.environment.get('accessToken')).to.be.ok; });",
+                  "pm.test('Refresh token saved', function () { pm.expect(pm.environment.get('refreshToken')).to.be.ok; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "토큰 재발급",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Refresh token API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "if (data.accessToken) { pm.environment.set('accessToken', data.accessToken); pm.collectionVariables.set('accessToken', data.accessToken); }",
+                  "if (data.refreshToken) { pm.environment.set('refreshToken', data.refreshToken); pm.collectionVariables.set('refreshToken', data.refreshToken); }",
+                  "pm.test('Refresh response has access token', function () { pm.expect(data.accessToken).to.exist; });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. 사용자",
+      "item": [
+        {
+          "name": "내 정보 조회",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me"
+              ]
+            },
+            "description": "Get my profile API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Me response includes basic identity', function () {",
+                  "  pm.expect(data).to.be.an('object');",
+                  "  pm.expect(data.userId || data.id).to.exist;",
+                  "  pm.expect(data.email).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. 일기",
+      "item": [
+        {
+          "name": "일기 생성",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Evening journal\",\n  \"content\": \"I felt tired after work, but a short walk helped me calm down.\",\n  \"primaryEmotion\": \"TIRED\",\n  \"emotionIntensity\": 4,\n  \"emotionTags\": [\n    {\n      \"emotionCode\": \"TIRED\",\n      \"intensity\": 4\n    },\n    {\n      \"emotionCode\": \"CALM\",\n      \"intensity\": 2\n    }\n  ],\n  \"writtenAt\": \"2026-03-29T21:30:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/diaries",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "diaries"
+              ]
+            },
+            "description": "Create diary API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201 Created', function () { pm.response.to.have.status(201); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "var id = data.diaryId || data.id;",
+                  "if (id) { pm.environment.set('diaryId', id); pm.collectionVariables.set('diaryId', id); }",
+                  "pm.test('Diary create response has core fields', function () {",
+                  "  pm.expect(id).to.exist;",
+                  "  pm.expect(data.title).to.exist;",
+                  "  pm.expect(data.content).to.exist;",
+                  "});",
+                  "pm.test('Diary id saved', function () { pm.expect(pm.environment.get('diaryId')).to.be.ok; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "일기 상세 조회",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/diaries/{{diaryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "diaries",
+                "{{diaryId}}"
+              ]
+            },
+            "description": "Get diary detail API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Diary detail returns selected diary', function () {",
+                  "  pm.expect(data.diaryId || data.id).to.exist;",
+                  "  pm.expect(data.title).to.exist;",
+                  "  pm.expect(data.content).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "일기 수정",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated evening journal\",\n  \"content\": \"It was a hard day, but I felt calmer later in the evening.\",\n  \"primaryEmotion\": \"CALM\",\n  \"emotionIntensity\": 3,\n  \"emotionTags\": [\n    {\n      \"emotionCode\": \"CALM\",\n      \"intensity\": 3\n    }\n  ],\n  \"writtenAt\": \"2026-03-29T21:30:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/diaries/{{diaryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "diaries",
+                "{{diaryId}}"
+              ]
+            },
+            "description": "Update diary API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Updated diary reflects core fields', function () {",
+                  "  pm.expect(data.title).to.exist;",
+                  "  pm.expect(data.content).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "날짜별 일기 조회",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/diaries?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "diaries"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            },
+            "description": "Get diaries by date API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Diary list response is an object container', function () { pm.expect(data).to.be.an('object'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. 캘린더",
+      "item": [
+        {
+          "name": "월간 감정 조회",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/calendar/monthly-emotions?year={{year}}&month={{month}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "calendar",
+                "monthly-emotions"
+              ],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "{{year}}"
+                },
+                {
+                  "key": "month",
+                  "value": "{{month}}"
+                }
+              ]
+            },
+            "description": "Get monthly emotion calendar API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Monthly calendar includes year and month', function () {",
+                  "  pm.expect(data.year).to.exist;",
+                  "  pm.expect(data.month).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "일간 요약 조회",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/calendar/daily-summary?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "calendar",
+                "daily-summary"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            },
+            "description": "Get daily emotion summary API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Daily summary includes date', function () { pm.expect(data.date).to.exist; });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. 채팅",
+      "item": [
+        {
+          "name": "채팅 세션 생성",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Today emotion chat\",\n  \"sourceDiaryId\": {{diaryId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/chat/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "chat",
+                "sessions"
+              ]
+            },
+            "description": "Create chat session API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201 Created', function () { pm.response.to.have.status(201); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "var id = data.sessionId || data.id;",
+                  "if (id) { pm.environment.set('sessionId', id); pm.collectionVariables.set('sessionId', id); }",
+                  "pm.test('Chat session create response has title', function () {",
+                  "  pm.expect(id).to.exist;",
+                  "  pm.expect(data.title).to.exist;",
+                  "});",
+                  "pm.test('Session id saved', function () { pm.expect(pm.environment.get('sessionId')).to.be.ok; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "채팅 세션 목록 조회",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/chat/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "chat",
+                "sessions"
+              ]
+            },
+            "description": "Get chat session list API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Chat session list response is an object', function () { pm.expect(data).to.be.an('object'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "채팅 세션 상세 조회",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/chat/sessions/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "chat",
+                "sessions",
+                "{{sessionId}}"
+              ]
+            },
+            "description": "Get chat session detail API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Chat detail includes session identifier', function () { pm.expect(data.sessionId || data.id).to.exist; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "메시지 전송",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"I felt very anxious today and I do not think I can sleep.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/chat/sessions/{{sessionId}}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "chat",
+                "sessions",
+                "{{sessionId}}",
+                "messages"
+              ]
+            },
+            "description": "Send message and get AI reply API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201 Created', function () { pm.response.to.have.status(201); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Send message response includes assistant reply or response type', function () {",
+                  "  pm.expect(data.assistantReply || data.responseType).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. 리포트",
+      "item": [
+        {
+          "name": "월간 요약 조회",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/monthly-summary?year={{year}}&month={{month}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "monthly-summary"
+              ],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "{{year}}"
+                },
+                {
+                  "key": "month",
+                  "value": "{{month}}"
+                }
+              ]
+            },
+            "description": "Get monthly report summary API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Monthly summary includes year and month', function () {",
+                  "  pm.expect(data.year).to.exist;",
+                  "  pm.expect(data.month).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "주간 감정 조회",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/emotions/weekly?date={{today}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "emotions",
+                "weekly"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "{{today}}"
+                }
+              ]
+            },
+            "description": "Get weekly emotion trend API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Weekly emotions response includes date range', function () {",
+                  "  pm.expect(data.startDate || data.rangeStart || data.from).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "월간 위험도 조회",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reports/risks/monthly?year={{year}}&month={{month}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "risks",
+                "monthly"
+              ],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "{{year}}"
+                },
+                {
+                  "key": "month",
+                  "value": "{{month}}"
+                }
+              ]
+            },
+            "description": "Get monthly risk trend API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Monthly risks response includes year and month', function () {",
+                  "  pm.expect(data.year).to.exist;",
+                  "  pm.expect(data.month).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. 실패 케이스",
+      "item": [
+        {
+          "name": "로그인 검증 실패 400",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"\",\n  \"password\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login validation failure"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Error response has common fields', function () {",
+                  "  pm.expect(data.status).to.eql(400);",
+                  "  pm.expect(data.error).to.exist;",
+                  "  pm.expect(data.message).to.exist;",
+                  "  pm.expect(data.path).to.eql('/api/v1/auth/login');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "내 정보 조회 토큰 없음 403",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me"
+              ]
+            },
+            "description": "Protected API without token"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403 Forbidden', function () { pm.response.to.have.status(403); });",
+                  "pm.test('Request id header exists', function () { pm.expect(pm.response.headers.get('X-Request-Id')).to.exist; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "내 정보 조회 잘못된 토큰 403",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{invalidAccessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "me"
+              ]
+            },
+            "description": "Protected API with invalid token"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 403 Forbidden', function () { pm.response.to.have.status(403); });",
+                  "pm.test('Request id header exists', function () { pm.expect(pm.response.headers.get('X-Request-Id')).to.exist; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "일기 상세 없음 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/diaries/{{missingDiaryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "diaries",
+                "{{missingDiaryId}}"
+              ]
+            },
+            "description": "Missing diary resource"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404 Not Found', function () { pm.response.to.have.status(404); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Error response has common fields', function () {",
+                  "  pm.expect(data.status).to.eql(404);",
+                  "  pm.expect(data.error).to.exist;",
+                  "  pm.expect(data.message).to.exist;",
+                  "  pm.expect(data.path).to.eql('/api/v1/diaries/' + pm.variables.get('missingDiaryId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "채팅 세션 상세 없음 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/chat/sessions/{{missingSessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "chat",
+                "sessions",
+                "{{missingSessionId}}"
+              ]
+            },
+            "description": "Missing chat session resource"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404 Not Found', function () { pm.response.to.have.status(404); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Error response has common fields', function () {",
+                  "  pm.expect(data.status).to.eql(404);",
+                  "  pm.expect(data.error).to.exist;",
+                  "  pm.expect(data.message).to.exist;",
+                  "  pm.expect(data.path).to.eql('/api/v1/chat/sessions/' + pm.variables.get('missingSessionId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "월간 감정 잘못된 month 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/calendar/monthly-emotions?year={{year}}&month=13",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "calendar",
+                "monthly-emotions"
+              ],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "{{year}}"
+                },
+                {
+                  "key": "month",
+                  "value": "13"
+                }
+              ]
+            },
+            "description": "Calendar validation failure"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Response is JSON', function () { pm.response.to.be.json; });",
+                  "var data = pm.response.json();",
+                  "pm.test('Error response has common fields', function () {",
+                  "  pm.expect(data.status).to.eql(400);",
+                  "  pm.expect(data.error).to.exist;",
+                  "  pm.expect(data.message).to.exist;",
+                  "  pm.expect(data.path).to.eql('/api/v1/calendar/monthly-emotions');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "8. 정리",
+      "item": [
+        {
+          "name": "일기 삭제",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/diaries/{{diaryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "diaries",
+                "{{diaryId}}"
+              ]
+            },
+            "description": "Delete diary API"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204 No Content', function () { pm.response.to.have.status(204); });",
+                  "pm.environment.unset('diaryId');",
+                  "pm.collectionVariables.unset('diaryId');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+

@@ -48,7 +48,7 @@ class RiskScoreServiceTest {
         );
 
         assertThat(response.riskLevel()).isEqualTo("MEDIUM");
-        assertThat(response.riskScore()).isEqualByComparingTo("0.65");
+        assertThat(response.riskScore()).isEqualByComparingTo("0.55");
         assertThat(response.signals()).contains("ISOLATION", "DISTRESS_ESCALATION");
         assertThat(response.recommendedAction()).isEqualTo("SUPPORTIVE_RESPONSE");
     }

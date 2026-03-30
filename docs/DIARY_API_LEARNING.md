@@ -133,9 +133,9 @@ DB 저장/조회 담당이다.
   "primaryEmotion": "TIRED",
   "emotionIntensity": 4,
   "aiPrimaryEmotion": "CALM",
-  "aiEmotionIntensity": 2,
-  "aiSummary": "산책 이후 긴장이 완화된 흐름이 보이는 기록입니다.",
-  "aiConfidence": 0.74,
+  "aiEmotionIntensity": 1,
+  "aiSummary": "TIRED는 아직 fallback 전용으로 취급되어 보수적인 기본 감정 결과로 처리했습니다.",
+  "aiConfidence": 0.10,
   "riskLevel": "LOW",
   "riskScore": 0.10,
   "riskSignals": null,
@@ -181,6 +181,10 @@ DB 저장/조회 담당이다.
 - **서비스의 본체 기능**
 - **저장 안정성이 AI보다 우선**
 - **요청 받기 / 로직 처리 / DB 저장의 분리**
+
+추가 메모:
+- 사용자 입력 `primaryEmotion`과 AI 분석 `aiPrimaryEmotion`은 다를 수 있다.
+- 현재 `ai-api-fastapi` 비교 서버에서는 `TIRED`를 learned primary emotion으로 신뢰하지 않기 때문에, tired-like 문장도 AI 쪽은 보수적으로 `CALM` fallback으로 저장될 수 있다.
 
 ---
 

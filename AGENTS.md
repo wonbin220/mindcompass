@@ -17,16 +17,16 @@ Before making changes, read the following files when relevant:
 - `docs/ai-api/RAG_CONTEXT_API_LEARNING.md` for retrieval and context building
 
 ## Repository architecture
-This project uses a 2-server architecture:
+This project uses a 3-layer runtime architecture:
 - `backend-api` = Spring Boot public API server
-- `ai-api` = Spring AI internal AI inference server
-- `ai-api-fastapi` = FastAPI comparison AI inference server
+- `ai-api` = Spring AI internal AI orchestration server
+- `ai-api-fastapi` = FastAPI emotion classification model serving layer
 
 Core rule:
-- The mobile app must call Spring Boot only.
+- The responsive web frontend must call Spring Boot only.
 - Spring Boot is the single public API entrypoint.
 - Spring Boot may call ai-api internally.
-- Do not make the mobile app depend on ai-api directly.
+- Do not make the frontend depend on ai-api directly.
 
 ## High-level responsibilities
 
@@ -47,13 +47,16 @@ Responsible for:
 - AI reply generation
 - embeddings / retrieval support
 - RAG context assembly
+- calling the model serving layer internally when needed
 - future experimental inference features
 
 ### ai-api-fastapi
 Responsible for:
-- keeping the legacy FastAPI implementation available for comparison
-- matching the same internal contracts where practical
-- supporting side-by-side inference experiments
+- emotion classification inference
+- model version management
+- threshold / calibration
+- experiment routing
+- inference metadata response
 
 ## MVP priorities
 Unless explicitly told otherwise, prioritize work in this order:
@@ -74,7 +77,7 @@ Unless explicitly told otherwise, prioritize work in this order:
 - Prefer project structure and technology choices that improve readability and maintainability for developers.
 - Keep the public API boundary in Spring Boot.
 - Keep ai-api as an internal inference service.
-- Keep ai-api-fastapi as a comparison target, not a mobile-facing server.
+- Keep ai-api-fastapi as an internal model serving layer, not a public frontend-facing server.
 - Storage, retrieval, and safety come before advanced AI features.
 - AI failures must not break the whole product flow.
 - Mental health flows require safety-first thinking.
@@ -153,5 +156,12 @@ Prefer these skills when relevant:
 - `create-spring-api-doc`
 - `create-fastapi-internal-endpoint`
 - `generate-erd-and-sql`
+
+## Session handoff and scope rules
+- Do not do work outside your role.
+- Do not guess; judge from current files, logs, and actual command results.
+- Always state file paths, processing scope, and remaining work.
+- Do not perform unrelated refactoring or large structural changes.
+- At the end of each task, leave a concrete next starting point or handoff note for the next worker.
 
 

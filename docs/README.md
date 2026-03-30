@@ -9,6 +9,7 @@
 - `CHAT_API_LEARNING.md`
 - `REPORT_API_LEARNING.md`
 - `DB_TABLE_SPECIFICATION.md`
+- `BACKEND_AI_LOCAL_RUN_GUIDE.md`
 - `sql/erdcloud_current_schema.sql`
 - `OPERATIONS_GUIDE.md`
 - `MOBILE_INTEGRATION_HANDOFF.md` (legacy filename, now used as responsive web integration handoff)
@@ -38,6 +39,11 @@
 - DB Table Specification이 실제 테이블 구조와 관계를 한 번에 정리
 
 앞으로 새 도메인을 추가할 때도 같은 형식으로 문서를 늘리면 된다.
+
+AI 운영과 manual OpenAI 검증 관련 참고:
+- `BACKEND_AI_LOCAL_RUN_GUIDE.md`
+- `ai-api/OPENAI_USAGE_AND_PROFILE_GUIDE.md`
+- `ai-api/MANUAL_OPENAI_QUALITY_CHECKLIST.md`
 
 ## 웹 프론트 시작점
 

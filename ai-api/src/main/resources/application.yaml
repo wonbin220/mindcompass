@@ -1,4 +1,4 @@
-# Spring AI 비교용 내부 서버 설정 파일입니다.
+# ai-api 내부 설정과 registry DB 마이그레이션 기본 파일입니다.
 server:
   port: ${AI_API_PORT:8001}
   servlet:
@@ -10,6 +10,23 @@ server:
 spring:
   application:
     name: ai-api
+  profiles:
+    # ai-api는 기본적으로 OpenAI를 끈 안전 모드로 시작하고, manual/prod에서만 명시적으로 활성화한다.
+    default: dev
+  datasource:
+    # ai-api 내부 운영 메타데이터는 공용 PostgreSQL의 ai_internal schema를 사용한다.
+    url: jdbc:postgresql://${AI_DB_HOST:${DB_HOST:mindcompass-dev.c2h8ms6ugbuh.us-east-1.rds.amazonaws.com}}:${AI_DB_PORT:${DB_PORT:5432}}/${AI_DB_NAME:${DB_NAME:mindcompass_dev_clean}}
+    username: ${AI_DB_USERNAME:${DB_USERNAME:postgres}}
+    password: ${AI_DB_PASSWORD:${DB_PASSWORD:}}
+    driver-class-name: org.postgresql.Driver
+  flyway:
+    # ai-api는 backend-api와 분리된 history 테이블로 내부 schema를 관리한다.
+    enabled: true
+    locations: classpath:db/migration
+    default-schema: ai_internal
+    schemas: ai_internal
+    table: ai_api_flyway_schema_history
+    baseline-on-migrate: true
   ai:
     openai:
       api-key: ${OPENAI_API_KEY:test-key}
@@ -22,3 +39,17 @@ management:
     web:
       exposure:
         include: health
+
+logging:
+  level:
+    # 초기 migration 적용 여부를 로그로 바로 확인한다.
+    org.flywaydb: INFO
+    org.springframework.boot.autoconfigure.flyway: INFO
+
+ai:
+  openai:
+    # 기본 동작은 비활성화이며 manual/prod 프로필에서만 true로 올린다.
+    enabled: false
+  fastapi:
+    # ai-api가 FastAPI model serving runtime 상태를 조회할 내부 base URL이다.
+    base-url: ${AI_FASTAPI_BASE_URL:http://localhost:8002}

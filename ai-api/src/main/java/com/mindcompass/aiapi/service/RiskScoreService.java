@@ -46,6 +46,11 @@ public class RiskScoreService {
             Allowed signals: SELF_HARM_IMPLICIT, SELF_HARM_EXPLICIT, ISOLATION, DISTRESS_ESCALATION, HOPELESSNESS.
             Use HIGH only for urgent self-harm or extreme crisis meaning.
             Use MEDIUM for significant distress, hopelessness, or isolation without explicit self-harm.
+            Keep riskScore numerically consistent with riskLevel.
+            LOW should usually stay around 0.00-0.34.
+            MEDIUM should usually stay around 0.35-0.69.
+            HIGH should usually stay around 0.70-1.00.
+            Be conservative for safety, but do not exaggerate mild anxiety into HIGH.
             Do not include markdown fences or extra explanation.
             """;
 
@@ -86,14 +91,10 @@ public class RiskScoreService {
 
     private String buildUserPrompt(RiskScoreRequest request, String text) {
         return """
-                userId: %d
-                sessionId: %s
                 sourceType: %s
                 text:
                 %s
                 """.formatted(
-                request.userId(),
-                request.sessionId() == null ? "null" : request.sessionId(),
                 request.sourceType(),
                 text
         );
@@ -203,7 +204,7 @@ public class RiskScoreService {
         if (!mediumSignals.isEmpty()) {
             return new RiskScoreResponse(
                     "MEDIUM",
-                    BigDecimal.valueOf(0.65).setScale(2, RoundingMode.HALF_UP),
+                    BigDecimal.valueOf(0.55).setScale(2, RoundingMode.HALF_UP),
                     List.copyOf(mediumSignals),
                     "SUPPORTIVE_RESPONSE"
             );

@@ -1,0 +1,99 @@
+{
+  "evaluated_labels": [
+    "HAPPY",
+    "CALM",
+    "ANXIOUS",
+    "SAD",
+    "ANGRY"
+  ],
+  "classification_report": {
+    "HAPPY": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 150.0
+    },
+    "CALM": {
+      "precision": 0.4298245614035088,
+      "recall": 0.98,
+      "f1-score": 0.5975609756097562,
+      "support": 150.0
+    },
+    "ANXIOUS": {
+      "precision": 0.6666666666666666,
+      "recall": 0.01282051282051282,
+      "f1-score": 0.025157232704402517,
+      "support": 156.0
+    },
+    "SAD": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 152.0
+    },
+    "ANGRY": {
+      "precision": 0.3111111111111111,
+      "recall": 0.8873239436619719,
+      "f1-score": 0.46069469835466187,
+      "support": 142.0
+    },
+    "accuracy": 0.36666666666666664,
+    "macro avg": {
+      "precision": 0.28152046783625734,
+      "recall": 0.37602889129649697,
+      "f1-score": 0.2166825813337641,
+      "support": 750.0
+    },
+    "weighted avg": {
+      "precision": 0.2835352826510721,
+      "recall": 0.36666666666666664,
+      "f1-score": 0.2119697624129496,
+      "support": 750.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      0,
+      142,
+      0,
+      0,
+      8
+    ],
+    [
+      0,
+      147,
+      0,
+      0,
+      3
+    ],
+    [
+      0,
+      16,
+      2,
+      0,
+      138
+    ],
+    [
+      0,
+      22,
+      0,
+      0,
+      130
+    ],
+    [
+      0,
+      15,
+      1,
+      0,
+      126
+    ]
+  ],
+  "focused_metrics": {
+    "happy_calm_macro_f1": 0.3348519362186788,
+    "happy_to_calm_count": 142,
+    "happy_to_calm_rate": 0.9466666666666667,
+    "calm_to_happy_count": 0,
+    "calm_to_happy_rate": 0.0,
+    "happy_calm_balanced_guard_score": 0.40940579224762474
+  }
+}

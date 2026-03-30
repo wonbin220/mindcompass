@@ -1,4 +1,6 @@
 # 위험 신호를 규칙 기반으로 분류하는 MVP 스코어링 서비스다.
+from __future__ import annotations
+
 import re
 
 from app.schemas.risk_score import RiskScoreRequest, RiskScoreResponse

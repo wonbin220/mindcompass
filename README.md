@@ -9,6 +9,13 @@
 3. Spring AI와 모델 서빙 계층을 함께 운영할 때 어떤 기준으로 구조를 유지해야 하는지 정리한다.
 4. Codex가 Spring AI 관련 작업을 할 때 어떤 톤과 형식으로 답해야 하는지 고정한다.
 
+## 로컬 실행 원칙
+
+- 기본 로컬 개발은 `backend-api -> ai-api(dev)` 조합으로 맞춘다.
+- 이 기본 조합에서는 `ai-api`가 OpenAI를 실제로 호출하지 않으므로 zero-cost 개발이 가능하다.
+- 실제 OpenAI 품질 검증은 `ai-api(manual)`을 명시적으로 켠 뒤 필요한 시나리오만 짧게 확인한다.
+- 자세한 실행 예시는 `docs/BACKEND_AI_LOCAL_RUN_GUIDE.md`와 `docs/ai-api/OPENAI_USAGE_AND_PROFILE_GUIDE.md`를 따른다.
+
 ---
 
 # 1. 왜 문서를 이렇게 나눴는가

@@ -63,11 +63,11 @@
 
 ```json
 {
-  "primaryEmotion": "TIRED",
-  "emotionIntensity": 4,
-  "emotionTags": ["TIRED", "RELIEVED", "CALM"],
-  "summary": "업무 피로가 컸지만 산책 이후 안정감을 일부 회복한 상태",
-  "confidence": 0.82
+  "primaryEmotion": "CALM",
+  "emotionIntensity": 2,
+  "emotionTags": ["CALM"],
+  "summary": "TIRED는 아직 fallback 전용으로 취급되어 보수적인 기본 감정 결과로 처리했습니다.",
+  "confidence": 0.10
 }
 ```
 
@@ -168,6 +168,11 @@ LLM에게 보낼 프롬프트를 정리한다.
 - 낮은 confidence
 - 단순 요약 결과
 등으로 대응할 수 있다.
+
+현재 FastAPI 비교 서버 기준 추가 메모:
+- `TIRED`는 아직 학습 품질이 부족해서 learned primary emotion으로 그대로 내보내지 않는다.
+- 모델이 `TIRED`를 예측하면 `CALM` fallback으로 내려가며, emotion-classify 응답에는 `fallbackReason="TIRED_FALLBACK_ONLY"`가 포함될 수 있다.
+- analyze-diary는 이 정책을 반영한 보수적 summary를 반환한다.
 
 ---
 

@@ -1,0 +1,4 @@
+# 로컬 개발에서는 OpenAI 비용을 막기 위해 기본적으로 프롬프트 호출을 끄는 프로필입니다.
+ai:
+  openai:
+    enabled: false

@@ -8,3 +8,10 @@ sqlalchemy
 psycopg[binary]
 pgvector
 pytest
+pandas
+scikit-learn
+numpy
+transformers
+torch
+safetensors
+accelerate

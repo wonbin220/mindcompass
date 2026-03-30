@@ -1,0 +1,1841 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Mind Compass API",
+    "version": "0.1.0-apidog",
+    "description": "Mind Compass backend-api public API spec for Apidog import. Operations are grouped into folder-style tags `구현 API` and `미구현 API`. Status tags use `Implemented` and `Planned`. Planned endpoints include example request/response payloads, but actual server calls may currently fail because those routes are not implemented yet."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080/api/v1",
+      "description": "Local backend-api"
+    }
+  ],
+  "tags": [
+    {
+      "name": "구현 API",
+      "description": "Implemented public APIs."
+    },
+    {
+      "name": "미구현 API",
+      "description": "Planned APIs. Not implemented yet."
+    },
+    {
+      "name": "Implemented",
+      "description": "Implemented backend-api endpoint."
+    },
+    {
+      "name": "Planned",
+      "description": "Planned endpoint. Not implemented yet."
+    },
+    {
+      "name": "Authentication"
+    },
+    {
+      "name": "Users"
+    },
+    {
+      "name": "Diaries"
+    },
+    {
+      "name": "Calendar"
+    },
+    {
+      "name": "Chat"
+    },
+    {
+      "name": "Reports"
+    },
+    {
+      "name": "Personas"
+    },
+    {
+      "name": "Contents"
+    },
+    {
+      "name": "Payments"
+    }
+  ],
+  "x-tagGroups": [
+    {
+      "name": "Folders",
+      "tags": [
+        "구현 API",
+        "미구현 API"
+      ]
+    },
+    {
+      "name": "Status",
+      "tags": [
+        "Implemented",
+        "Planned"
+      ]
+    },
+    {
+      "name": "Domains",
+      "tags": [
+        "Authentication",
+        "Users",
+        "Diaries",
+        "Calendar",
+        "Chat",
+        "Reports",
+        "Personas",
+        "Contents",
+        "Payments"
+      ]
+    }
+  ],
+  "paths": {
+    "/auth/signup": {
+      "post": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Authentication"
+        ],
+        "summary": "Sign up",
+        "description": "Create a new user account.",
+        "operationId": "post_auth_signup",
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "example": {
+                  "userId": 1,
+                  "email": "user@example.com",
+                  "nickname": "minduser",
+                  "createdAt": "2026-03-30T10:00:00"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "email": "user@example.com",
+                "password": "Abcd1234!",
+                "nickname": "minduser"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Authentication"
+        ],
+        "summary": "Login",
+        "description": "Authenticate a user and issue access and refresh tokens.",
+        "operationId": "post_auth_login",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "accessToken": "jwt-access-token",
+                  "refreshToken": "jwt-refresh-token",
+                  "user": {
+                    "userId": 1,
+                    "nickname": "minduser"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "email": "user@example.com",
+                "password": "Abcd1234!"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Authentication"
+        ],
+        "summary": "Refresh token",
+        "description": "Refresh the access token using a refresh token.",
+        "operationId": "post_auth_refresh",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "accessToken": "new-access-token",
+                  "refreshToken": "new-refresh-token"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "refreshToken": "jwt-refresh-token"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Authentication"
+        ],
+        "summary": "Logout",
+        "description": "Not implemented yet. Planned logout endpoint for invalidating access and refresh tokens.",
+        "operationId": "post_auth_logout",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/auth/password/reset-request": {
+      "post": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Authentication"
+        ],
+        "summary": "Request password reset",
+        "description": "Not implemented yet. Planned endpoint for sending a password reset email or temporary password.",
+        "operationId": "post_auth_password_reset-request",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "Temporary password sent successfully."
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "email": "user@example.com"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/social/google": {
+      "post": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Authentication"
+        ],
+        "summary": "Google social login",
+        "description": "Not implemented yet. Planned Google social login endpoint.",
+        "operationId": "post_auth_social_google",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "accessToken": "jwt-access-token",
+                  "refreshToken": "jwt-refresh-token",
+                  "user": {
+                    "userId": 1,
+                    "nickname": "minduser"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "idToken": "google-id-token"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/password": {
+      "put": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Authentication"
+        ],
+        "summary": "Change password",
+        "description": "Not implemented yet. Planned endpoint for changing the current user's password.",
+        "operationId": "put_auth_password",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "Password updated successfully."
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "currentPassword": "Abcd1234!",
+                "newPassword": "Xyz!2345"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/users/me": {
+      "get": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Users"
+        ],
+        "summary": "Get my profile",
+        "description": "Get the current user's profile and settings.",
+        "operationId": "get_users_me",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "userId": 1,
+                  "email": "user@example.com",
+                  "nickname": "minduser",
+                  "status": "ACTIVE",
+                  "settings": {
+                    "appLockEnabled": false,
+                    "notificationEnabled": true,
+                    "dailyReminderTime": "22:00:00",
+                    "responseMode": "EMPATHETIC"
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/users/me/settings": {
+      "patch": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Users"
+        ],
+        "summary": "Update settings",
+        "description": "Not implemented yet. Planned endpoint for updating user settings.",
+        "operationId": "patch_users_me_settings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "userId": 1,
+                  "settings": {
+                    "notificationEnabled": true,
+                    "dailyReminderTime": "22:00:00",
+                    "responseMode": "EMPATHETIC"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "notificationEnabled": true,
+                "dailyReminderTime": "22:00:00",
+                "responseMode": "EMPATHETIC"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/users/me/statistics": {
+      "get": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Users"
+        ],
+        "summary": "Get statistics",
+        "description": "Not implemented yet. Planned endpoint for user-level usage statistics.",
+        "operationId": "get_users_me_statistics",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "totalDiaryCount": 12,
+                  "totalChatSessionCount": 5,
+                  "totalMessageCount": 42
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/users/me/interests": {
+      "patch": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Users"
+        ],
+        "summary": "Update interests",
+        "description": "Not implemented yet. Planned endpoint for updating user interests.",
+        "operationId": "patch_users_me_interests",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "interests": [
+                    "sleep",
+                    "anxiety",
+                    "self-care"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "interests": [
+                  "sleep",
+                  "anxiety",
+                  "self-care"
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/diaries": {
+      "post": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Diaries"
+        ],
+        "summary": "Create diary",
+        "description": "Create a diary entry. AI enrichment fields are included in the response.",
+        "operationId": "post_diaries",
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "example": {
+                  "diaryId": 101,
+                  "title": "Evening journal",
+                  "content": "I felt tired after work, but a short walk helped me calm down.",
+                  "primaryEmotion": "TIRED",
+                  "emotionIntensity": 4,
+                  "writtenAt": "2026-03-30T21:30:00",
+                  "riskLevel": "LOW",
+                  "recommendedAction": "NORMAL_RESPONSE"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "title": "Evening journal",
+                "content": "I felt tired after work, but a short walk helped me calm down.",
+                "primaryEmotion": "TIRED",
+                "emotionIntensity": 4,
+                "writtenAt": "2026-03-30T21:30:00"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Diaries"
+        ],
+        "summary": "Get diaries by date",
+        "description": "Get diary items for a specific date.",
+        "operationId": "get_diaries",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "date": "2026-03-30",
+                  "items": [
+                    {
+                      "diaryId": 101,
+                      "title": "Evening journal",
+                      "primaryEmotion": "TIRED",
+                      "emotionIntensity": 4,
+                      "writtenAt": "2026-03-30T21:30:00"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2026-03-30"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/diaries/{diaryId}": {
+      "get": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Diaries"
+        ],
+        "summary": "Get diary detail",
+        "description": "Get diary detail by diary id.",
+        "operationId": "get_diaries_diaryId",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "diaryId": 101,
+                  "title": "Evening journal",
+                  "content": "I felt tired after work, but a short walk helped me calm down.",
+                  "primaryEmotion": "TIRED",
+                  "emotionIntensity": 4
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        },
+        "parameters": [
+          {
+            "name": "diaryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 101
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Diaries"
+        ],
+        "summary": "Update diary",
+        "description": "Update diary title, content, and emotion fields.",
+        "operationId": "patch_diaries_diaryId",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "diaryId": 101,
+                  "title": "Updated evening journal",
+                  "primaryEmotion": "CALM",
+                  "emotionIntensity": 3
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "title": "Updated evening journal",
+                "content": "It was a hard day, but I felt calmer later.",
+                "primaryEmotion": "CALM",
+                "emotionIntensity": 3
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "diaryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 101
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Diaries"
+        ],
+        "summary": "Delete diary",
+        "description": "Delete a diary entry by diary id.",
+        "operationId": "delete_diaries_diaryId",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        },
+        "parameters": [
+          {
+            "name": "diaryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 101
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/calendar/monthly-emotions": {
+      "get": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Calendar"
+        ],
+        "summary": "Get monthly emotions",
+        "description": "Get monthly emotion calendar data.",
+        "operationId": "get_calendar_monthly-emotions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "year": 2026,
+                  "month": 3,
+                  "days": [
+                    {
+                      "date": "2026-03-30",
+                      "hasDiary": true,
+                      "primaryEmotion": "CALM",
+                      "emotionIntensity": 3
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 2026
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 3
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/calendar/daily-summary": {
+      "get": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Calendar"
+        ],
+        "summary": "Get daily summary",
+        "description": "Get daily summary for the selected date.",
+        "operationId": "get_calendar_daily-summary",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "date": "2026-03-30",
+                  "hasDiary": true,
+                  "diaryCount": 1,
+                  "primaryEmotion": "CALM",
+                  "emotionIntensity": 3,
+                  "summary": "The user recovered some emotional stability later."
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2026-03-30"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/calendar/emotion-timeline": {
+      "get": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Calendar"
+        ],
+        "summary": "Get emotion timeline",
+        "description": "Not implemented yet. Planned endpoint for timeline-style emotion history.",
+        "operationId": "get_calendar_emotion-timeline",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "items": [
+                    {
+                      "date": "2026-03-30",
+                      "primaryEmotion": "CALM",
+                      "emotionIntensity": 3
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "startDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2026-03-01"
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2026-03-30"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/chat/sessions": {
+      "post": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Chat"
+        ],
+        "summary": "Create chat session",
+        "description": "Create a new chat session.",
+        "operationId": "post_chat_sessions",
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "example": {
+                  "sessionId": 501,
+                  "title": "Today emotion chat",
+                  "sourceDiaryId": 101
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "title": "Today emotion chat",
+                "sourceDiaryId": 101
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Chat"
+        ],
+        "summary": "Get chat sessions",
+        "description": "Get the current user's chat sessions.",
+        "operationId": "get_chat_sessions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "items": [
+                    {
+                      "sessionId": 501,
+                      "title": "Today emotion chat",
+                      "sourceDiaryId": 101
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/chat/sessions/{sessionId}": {
+      "get": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Chat"
+        ],
+        "summary": "Get chat session detail",
+        "description": "Get chat session detail with messages.",
+        "operationId": "get_chat_sessions_sessionId",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "sessionId": 501,
+                  "title": "Today emotion chat",
+                  "messages": [
+                    {
+                      "messageId": 1001,
+                      "role": "USER",
+                      "content": "I felt very anxious today."
+                    },
+                    {
+                      "messageId": 1002,
+                      "role": "ASSISTANT",
+                      "content": "That sounds like a heavy day."
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 501
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/chat/sessions/{sessionId}/messages": {
+      "post": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Chat"
+        ],
+        "summary": "Send chat message",
+        "description": "Send a message and receive an AI assistant reply.",
+        "operationId": "post_chat_sessions_sessionId_messages",
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "example": {
+                  "userMessageId": 1003,
+                  "assistantMessageId": 1004,
+                  "assistantReply": "That sounds overwhelming.",
+                  "responseType": "SUPPORTIVE"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "503": {
+            "description": "Service Unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "message": "I felt very anxious today and I do not think I can sleep."
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 501
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/chat/sessions/{sessionId}/messages/history": {
+      "get": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Chat"
+        ],
+        "summary": "Get message history",
+        "description": "Not implemented yet. Planned endpoint for paged message history.",
+        "operationId": "get_chat_sessions_sessionId_messages_history",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "items": [
+                    {
+                      "messageId": 1001,
+                      "role": "USER",
+                      "content": "I felt very anxious today."
+                    }
+                  ],
+                  "nextCursor": null
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 501
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/chat/usage/today": {
+      "get": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Chat"
+        ],
+        "summary": "Get today's usage",
+        "description": "Not implemented yet. Planned endpoint for today's chat usage summary.",
+        "operationId": "get_chat_usage_today",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "date": "2026-03-30",
+                  "messageCount": 8,
+                  "sessionCount": 2
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/reports/monthly-summary": {
+      "get": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Reports"
+        ],
+        "summary": "Get monthly summary",
+        "description": "Get monthly report summary.",
+        "operationId": "get_reports_monthly-summary",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "year": 2026,
+                  "month": 3,
+                  "diaryCount": 12,
+                  "averageEmotionIntensity": 3.2,
+                  "riskSummary": {
+                    "mediumCount": 1,
+                    "highCount": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 2026
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 3
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/reports/emotions/weekly": {
+      "get": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Reports"
+        ],
+        "summary": "Get weekly emotions",
+        "description": "Get weekly emotion trend data.",
+        "operationId": "get_reports_emotions_weekly",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "startDate": "2026-03-24",
+                  "endDate": "2026-03-30",
+                  "items": [
+                    {
+                      "date": "2026-03-30",
+                      "primaryEmotion": "CALM",
+                      "emotionIntensity": 3
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2026-03-30"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/reports/risks/monthly": {
+      "get": {
+        "tags": [
+          "구현 API",
+          "Implemented",
+          "Reports"
+        ],
+        "summary": "Get monthly risks",
+        "description": "Get monthly risk trend data.",
+        "operationId": "get_reports_risks_monthly",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "year": 2026,
+                  "month": 3,
+                  "items": [
+                    {
+                      "date": "2026-03-30",
+                      "riskLevel": "MEDIUM",
+                      "count": 1
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 2026
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 3
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/reports/personas": {
+      "get": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Reports"
+        ],
+        "summary": "Get persona report",
+        "description": "Not implemented yet. Planned endpoint for persona-oriented report summaries.",
+        "operationId": "get_reports_personas",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "recommendedPersona": {
+                    "personaId": 3,
+                    "name": "Calm Coach"
+                  },
+                  "reasonSummary": "Recent patterns suggest a reflective support persona."
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/personas": {
+      "get": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Personas"
+        ],
+        "summary": "Get personas",
+        "description": "Not implemented yet. Planned endpoint for persona list.",
+        "operationId": "get_personas",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "items": [
+                    {
+                      "personaId": 1,
+                      "name": "Gentle Listener",
+                      "description": "A warm and empathetic counselor persona."
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/personas/{personaId}": {
+      "get": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Personas"
+        ],
+        "summary": "Get persona detail",
+        "description": "Not implemented yet. Planned endpoint for persona detail.",
+        "operationId": "get_personas_personaId",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "personaId": 1,
+                  "name": "Gentle Listener",
+                  "description": "A warm and empathetic counselor persona.",
+                  "tone": "warm"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "personaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 1
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/personas/recommendations": {
+      "get": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Personas"
+        ],
+        "summary": "Get persona recommendations",
+        "description": "Not implemented yet. Planned endpoint for user-tailored persona recommendations.",
+        "operationId": "get_personas_recommendations",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "items": [
+                    {
+                      "personaId": 2,
+                      "name": "Calm Coach",
+                      "matchScore": 0.92
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/personas/recommendations/today": {
+      "get": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Personas"
+        ],
+        "summary": "Get today's persona recommendation",
+        "description": "Not implemented yet. Planned endpoint for today's persona recommendation.",
+        "operationId": "get_personas_recommendations_today",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "personaId": 2,
+                  "name": "Calm Coach",
+                  "reason": "Recommended based on this week's emotional stability trend."
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/contents/recommendations": {
+      "get": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Contents"
+        ],
+        "summary": "Get content recommendations",
+        "description": "Not implemented yet. Planned endpoint for persona-based content recommendations.",
+        "operationId": "get_contents_recommendations",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "items": [
+                    {
+                      "contentId": 11,
+                      "type": "YOUTUBE",
+                      "title": "5 minute calming breathing routine"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/contents/recommendations/realtime": {
+      "get": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Contents"
+        ],
+        "summary": "Get realtime content recommendations",
+        "description": "Not implemented yet. Planned endpoint for real-time content recommendations based on chat context.",
+        "operationId": "get_contents_recommendations_realtime",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "items": [
+                    {
+                      "contentId": 21,
+                      "type": "BOOK",
+                      "title": "The Anxiety Toolkit",
+                      "reason": "Matches the current conversation context."
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/contents/bookmarks": {
+      "post": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Contents"
+        ],
+        "summary": "Create bookmark",
+        "description": "Not implemented yet. Planned endpoint for bookmarking a content item.",
+        "operationId": "post_contents_bookmarks",
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "example": {
+                  "bookmarkId": 301,
+                  "contentId": 11,
+                  "createdAt": "2026-03-30T22:30:00"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "contentId": 11
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Contents"
+        ],
+        "summary": "Get bookmarks",
+        "description": "Not implemented yet. Planned endpoint for bookmark list.",
+        "operationId": "get_contents_bookmarks",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "items": [
+                    {
+                      "bookmarkId": 301,
+                      "contentId": 11,
+                      "title": "5 minute calming breathing routine"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/contents/bookmarks/{bookmarkId}": {
+      "delete": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Contents"
+        ],
+        "summary": "Delete bookmark",
+        "description": "Not implemented yet. Planned endpoint for deleting a bookmark.",
+        "operationId": "delete_contents_bookmarks_bookmarkId",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        },
+        "parameters": [
+          {
+            "name": "bookmarkId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 301
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/payments/subscription-link": {
+      "post": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Payments"
+        ],
+        "summary": "Create subscription link",
+        "description": "Not implemented yet. Planned endpoint for generating a Polar subscription checkout URL.",
+        "operationId": "post_payments_subscription-link",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "checkoutUrl": "https://polar.sh/checkout/session/abc123"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/payments/subscription-status": {
+      "get": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Payments"
+        ],
+        "summary": "Get subscription status",
+        "description": "Not implemented yet. Planned endpoint for subscription status.",
+        "operationId": "get_payments_subscription-status",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "ACTIVE",
+                  "plan": "PREMIUM_MONTHLY",
+                  "renewalDate": "2026-04-30"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/payments/customer-portal": {
+      "get": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Payments"
+        ],
+        "summary": "Get customer portal URL",
+        "description": "Not implemented yet. Planned endpoint for customer portal access.",
+        "operationId": "get_payments_customer-portal",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "portalUrl": "https://polar.sh/customer/portal/abc123"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/payments/polar/webhook": {
+      "post": {
+        "tags": [
+          "미구현 API",
+          "Planned",
+          "Payments"
+        ],
+        "summary": "Handle Polar webhook",
+        "description": "Not implemented yet. Planned endpoint for handling Polar webhook events.",
+        "operationId": "post_payments_polar_webhook",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "example": {
+                  "received": true
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "type": "subscription.updated",
+                "data": {
+                  "subscriptionId": "sub_123",
+                  "status": "ACTIVE"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

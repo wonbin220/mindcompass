@@ -205,3 +205,78 @@ LLM에게 보낼 시스템 지침/응답 형식 구성
 ## 운영 메모
 - generate-reply 실패는 Chat 저장 실패로 번지지 않도록 설계돼 있다.
 - fallback 응답은 장애 은닉이 아니라 대화 기록 보존용 안전 장치다.
+
+---
+
+# 13. Spring AI 비교 서버 기준 현재 구조
+
+현재 `ai-api`의 `generate-reply`는 단순 기본 문장 반환만 하지 않고,
+아래 순서로 동작하도록 정리했다.
+
+1. Spring Boot가 `POST /internal/ai/generate-reply`를 호출한다.
+2. `ChatAiController`가 요청을 받는다.
+3. `ReplyGenerationService`가 먼저 Spring AI 프롬프트 생성을 시도한다.
+4. 모델 응답이 계약에 맞는 JSON이면 그 값을 그대로 사용한다.
+5. 모델 응답이 비어 있거나 JSON 파싱에 실패하면 안전한 fallback 답변으로 내려간다.
+6. 최종적으로 `GenerateReplyResponse`를 Spring Boot에 반환한다.
+
+즉 현재 구조는:
+
+- 1차: Spring AI 프롬프트 시도
+- 2차: 구조화 JSON 파싱
+- 실패 시: 안전한 fallback reply
+
+## 왜 이렇게 바꿨는가
+
+비교 목적상 `generate-reply`도 실제 모델 시도를 해봐야
+나중에 `ai-api-fastapi`와 응답 품질, 유지보수성, fallback 안정성을 비교할 수 있다.
+
+하지만 멘탈헬스 서비스에서는 생성 실패 때문에 대화 흐름이 끊기면 안 되므로,
+프롬프트 실패 시에도 assistant 메시지가 비지 않게 fallback을 유지한다.
+
+## 현재 코드 기준 역할
+
+- `ChatAiController`
+  - 내부 `/generate-reply` 엔드포인트 진입점
+- `ReplyGenerationService`
+  - 프롬프트 시도
+  - JSON 파싱
+  - fallback 답변 생성
+- `ReplyGenerationPromptClient`
+  - 프롬프트 호출 인터페이스
+- `SpringReplyGenerationPromptClient`
+  - Spring AI `ChatClient` 기반 실제 호출 구현
+
+## 현재 fallback 원칙
+
+- 입력 메시지가 비어 있으면 짧은 입력 유도 문구 + `FALLBACK`
+- 프롬프트 응답이 비어 있거나 계약에 맞지 않으면 공감형 기본 답변 + `FALLBACK`
+- backend-api는 이 응답을 받아도 대화 저장 흐름을 계속 유지한다
+
+## 현재 테스트 포인트
+
+- 프롬프트가 정상 JSON을 반환하면 그 값을 그대로 반영하는지
+- 프롬프트 응답이 깨졌을 때 fallback으로 내려가는지
+- 프롬프트 클라이언트가 없을 때도 fallback이 유지되는지
+- 빈 입력에서 fallback 유도 문구를 주는지
+
+# 16. 2026-03-25 프롬프트 품질 조정 메모
+
+현재 `ai-api` 프롬프트는 비용과 품질을 함께 고려해 아래 방향으로 다듬었다.
+
+## generate-reply
+- 2~3문장 구조를 강하게 유도
+- 1문장: 공감
+- 2문장: 사용자 상황 반영
+- 마지막 문장: 부담 적은 후속 질문 1개
+- 기계적이거나 훈계조인 표현 금지
+
+## analyze-diary
+- summary는 감정 라벨만 반복하지 않도록 유도
+- 감정 + 맥락/지속성/일상 영향 중 최소 하나를 포함하도록 유도
+- 상담자가 빠르게 읽어도 이해되는 한 문장 요약을 목표로 조정
+
+## risk-score
+- `riskLevel`과 `riskScore` 범위를 더 일관되게 맞추도록 유도
+- LOW / MEDIUM / HIGH의 수치 범위를 프롬프트에 직접 명시
+- 과도한 고위험 분류를 피하되 안전 우선 원칙은 유지

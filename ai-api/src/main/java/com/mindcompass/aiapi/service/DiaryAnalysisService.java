@@ -1,4 +1,4 @@
-// 일기 감정 분석은 Spring AI 시도 후 실패하면 규칙 기반 fallback으로 보호하는 서비스입니다.
+// ?쇨린 媛먯젙 遺꾩꽍??Spring AI濡??쒕룄?섍퀬 ?ㅽ뙣?섎㈃ 洹쒖튃 湲곕컲 fallback?쇰줈 蹂댄샇?섎뒗 ?쒕퉬?ㅻ떎.
 package com.mindcompass.aiapi.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -21,9 +21,9 @@ public class DiaryAnalysisService {
 
     private static final Logger log = LoggerFactory.getLogger(DiaryAnalysisService.class);
 
-    private static final String EMPTY_CONTENT_SUMMARY = "내용이 비어 있어 기본 감정 결과로 반환합니다.";
-    private static final String ANXIOUS_SUMMARY = "불안과 긴장감이 반복되어 드러나는 일기입니다.";
-    private static final String DEFAULT_SUMMARY = "Spring AI 비교용 기본 감정 분석 결과입니다.";
+    private static final String EMPTY_CONTENT_SUMMARY = "?댁슜??鍮꾩뼱 ?덉뼱 湲곕낯 媛먯젙 寃곌낵濡?諛섑솚?⑸땲??";
+    private static final String ANXIOUS_SUMMARY = "遺덉븞怨?湲댁옣??諛섎났?섍퀬 ?쇱긽 吏묒쨷???대젮?좊뜕 湲곕줉?쇰줈 ?댁꽍?⑸땲??";
+    private static final String DEFAULT_SUMMARY = "媛먯젙 ?먮쫫怨??쇱긽 留λ씫???④퍡 ?댄렣蹂??꾩슂媛 ?덈뒗 湲곕줉?낅땲??";
     private static final Set<String> ALLOWED_EMOTIONS = Set.of(
             "RELIEVED", "ANGRY", "SAD", "LONELY", "NUMB",
             "CALM", "HAPPY", "TIRED", "ANXIOUS", "OVERWHELMED", "TENSE"
@@ -39,6 +39,10 @@ public class DiaryAnalysisService {
               \"confidence\": 0.0-1.0
             }
             Allowed labels: RELIEVED, ANGRY, SAD, LONELY, NUMB, CALM, HAPPY, TIRED, ANXIOUS, OVERWHELMED, TENSE.
+            The summary must be one concise Korean sentence.
+            The summary must mention emotion plus context, duration, or daily-life impact.
+            Do not simply restate one emotion label like \"遺덉븞?덉뒿?덈떎.\"
+            Prefer a natural sentence that a counselor could briefly read and understand.
             Do not include markdown fences or extra explanation.
             """;
 
@@ -80,12 +84,10 @@ public class DiaryAnalysisService {
 
     private String buildUserPrompt(AnalyzeDiaryRequest request, String content) {
         return """
-                userId: %d
-                diaryId: %d
                 writtenAt: %s
                 content:
                 %s
-                """.formatted(request.userId(), request.diaryId(), request.writtenAt(), content);
+                """.formatted(request.writtenAt(), content);
     }
 
     private AnalyzeDiaryResponse parseStructuredResponse(String raw) {
@@ -104,13 +106,7 @@ public class DiaryAnalysisService {
                 return null;
             }
 
-            return new AnalyzeDiaryResponse(
-                    primaryEmotion,
-                    emotionIntensity,
-                    emotionTags,
-                    summary,
-                    confidence
-            );
+            return new AnalyzeDiaryResponse(primaryEmotion, emotionIntensity, emotionTags, summary, confidence);
         } catch (Exception exception) {
             log.warn("Diary analysis response parsing failed. raw={}", raw, exception);
             return null;
@@ -195,7 +191,7 @@ public class DiaryAnalysisService {
     }
 
     private AnalyzeDiaryResponse ruleBasedFallback(String content) {
-        if (containsAny(content, "불안", "걱정", "초조")) {
+        if (containsAny(content, "遺덉븞", "嫄깆젙", "珥덉“")) {
             return new AnalyzeDiaryResponse(
                     "ANXIOUS",
                     4,

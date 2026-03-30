@@ -1,4 +1,4 @@
-// 일기 감정 분석은 프롬프트 성공과 fallback 동작을 함께 검증하는 테스트입니다.
+// ?쇨린 媛먯젙 遺꾩꽍???꾨＼?꾪듃 ?깃났怨?fallback ?숈옉???④퍡 寃利앺븯???뚯뒪?몃떎.
 package com.mindcompass.aiapi.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,7 +21,7 @@ class DiaryAnalysisServiceTest {
                           \"primaryEmotion\": \"OVERWHELMED\",
                           \"emotionIntensity\": 5,
                           \"emotionTags\": [\"OVERWHELMED\", \"ANXIOUS\"],
-                          \"summary\": \"과부하와 불안이 함께 드러나는 기록입니다.\",
+                          \"summary\": \"怨쇰??섏? 遺덉븞???④퍡 ?댁뼱吏??섎（??湲곕줉?낅땲??\",
                           \"confidence\": 0.88
                         }
                         """,
@@ -29,13 +29,13 @@ class DiaryAnalysisServiceTest {
         );
 
         AnalyzeDiaryResponse response = diaryAnalysisService.analyze(
-                new AnalyzeDiaryRequest(1L, 1L, "오늘은 너무 벅차고 불안했다.", "2026-03-24T21:30:00")
+                new AnalyzeDiaryRequest(1L, 1L, "?ㅻ뒛? ?덈Т 踰꾧쾪怨?遺덉븞?덈떎.", "2026-03-24T21:30:00")
         );
 
         assertThat(response.primaryEmotion()).isEqualTo("OVERWHELMED");
         assertThat(response.emotionIntensity()).isEqualTo(5);
         assertThat(response.emotionTags()).containsExactly("OVERWHELMED", "ANXIOUS");
-        assertThat(response.summary()).isEqualTo("과부하와 불안이 함께 드러나는 기록입니다.");
+        assertThat(response.summary()).isEqualTo("怨쇰??섏? 遺덉븞???④퍡 ?댁뼱吏??섎（??湲곕줉?낅땲??");
         assertThat(response.confidence()).isEqualByComparingTo("0.88");
     }
 
@@ -47,11 +47,11 @@ class DiaryAnalysisServiceTest {
         );
 
         AnalyzeDiaryResponse response = diaryAnalysisService.analyze(
-                new AnalyzeDiaryRequest(1L, 1L, "오늘은 불안하고 걱정이 많아서 초조했다.", "2026-03-24T21:30:00")
+                new AnalyzeDiaryRequest(1L, 1L, "?ㅻ뒛? 遺덉븞?섍퀬 嫄깆젙??留롮븘??珥덉“?덈떎.", "2026-03-24T21:30:00")
         );
 
         assertThat(response.primaryEmotion()).isEqualTo("ANXIOUS");
-        assertThat(response.summary()).isEqualTo("불안과 긴장감이 반복되어 드러나는 일기입니다.");
+        assertThat(response.summary()).isEqualTo("遺덉븞怨?湲댁옣??諛섎났?섍퀬 ?쇱긽 吏묒쨷???대젮?좊뜕 湲곕줉?쇰줈 ?댁꽍?⑸땲??");
         assertThat(response.confidence()).isEqualByComparingTo("0.73");
     }
 
@@ -63,11 +63,11 @@ class DiaryAnalysisServiceTest {
         );
 
         AnalyzeDiaryResponse response = diaryAnalysisService.analyze(
-                new AnalyzeDiaryRequest(1L, 1L, "산책도 하고 밥도 먹고 기록을 남겼다.", "2026-03-24T21:30:00")
+                new AnalyzeDiaryRequest(1L, 1L, "?곗콉?섍퀬 諛λ룄 癒밴퀬 湲곕줉???④꼈??", "2026-03-24T21:30:00")
         );
 
         assertThat(response.primaryEmotion()).isEqualTo("CALM");
-        assertThat(response.summary()).isEqualTo("Spring AI 비교용 기본 감정 분석 결과입니다.");
+        assertThat(response.summary()).isEqualTo("媛먯젙 ?먮쫫怨??쇱긽 留λ씫???④퍡 ?댄렣蹂??꾩슂媛 ?덈뒗 湲곕줉?낅땲??");
         assertThat(response.confidence()).isEqualByComparingTo("0.50");
     }
 
@@ -83,7 +83,7 @@ class DiaryAnalysisServiceTest {
         );
 
         assertThat(response.primaryEmotion()).isEqualTo("CALM");
-        assertThat(response.summary()).isEqualTo("내용이 비어 있어 기본 감정 결과로 반환합니다.");
+        assertThat(response.summary()).isEqualTo("?댁슜??鍮꾩뼱 ?덉뼱 湲곕낯 媛먯젙 寃곌낵濡?諛섑솚?⑸땲??");
         assertThat(response.confidence()).isEqualByComparingTo(BigDecimal.valueOf(0.10).setScale(2));
     }
 }

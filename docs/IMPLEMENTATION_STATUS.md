@@ -225,6 +225,41 @@
 - Caution
   - 샘플 출력 길이와 전체 원본 길이가 다를 때는 샘플 전용 입력 파일로 resume 기준을 맞추는 편이 안전
 
+### 2026-03-29 human-and-llm 전체 번역 재개 점검
+
+- Completed work
+  - `human-and-llm-mental-health-conversations/dataset.csv` 현재 상태 재확인
+  - 샘플 작업과 전체 작업 범위를 분리해 점검
+    - 샘플 완료 파일: `human-and-llm-mental-health-conversations/dataset_ko_sample.csv`
+    - 전체 대상 원본: `human-and-llm-mental-health-conversations/dataset.csv`
+  - 기존 번역 스크립트 `scripts/translate_mental_health_csv.py`로 전체 출력 파일 `human-and-llm-mental-health-conversations/dataset_ko.csv` 생성 시도
+- Verification status
+  - 원본 행 수: `3507`
+  - 원본 컬럼: `Context`, `Response`, `LLM`
+  - 원본 공란 수
+    - `Context_empty=0`
+    - `Response_empty=0`
+    - `LLM_empty=0`
+  - 샘플 완료 상태
+    - `dataset_ko_sample.csv` 행 수 `80`
+    - `Context_ko=80`
+    - `Response_ko=80`
+    - `LLM_ko=80`
+  - 전체 출력 파일 상태
+    - `dataset_ko.csv` 미생성
+  - 전체 번역 실행 결과
+    - 첫 배치 요청에서 `401 invalid_api_key`로 중단
+    - 현재 셸의 `OPENAI_API_KEY` 교체 전까지 전체 번역 재개 불가
+- Current blocker or caution
+  - 이번 세션에서 완료된 것은 샘플 복구본 확인까지이며, 전체 번역은 아직 미완이다.
+  - 원본 데이터와 샘플 복구본은 유지했고, 기존 다른 변경은 건드리지 않았다.
+  - 유효한 OpenAI API 키를 다시 설정한 뒤 아래 명령으로 그대로 재개하면 된다.
+    - `python scripts\translate_mental_health_csv.py --input "C:\Users\wonbin\OneDrive\바탕 화면\mindcompass project\csv파일들\human-and-llm-mental-health-conversations\dataset.csv" --output "C:\Users\wonbin\OneDrive\바탕 화면\mindcompass project\csv파일들\human-and-llm-mental-health-conversations\dataset_ko.csv" --text-columns "Context,Response,LLM" --batch-size 5 --sleep-seconds 0.5 --resume-mode contiguous`
+- Next recommended work
+  - `OPENAI_API_KEY`를 유효한 값으로 교체
+  - `dataset_ko.csv` 전체 번역 재실행
+  - 완료 후 `Context_ko`, `Response_ko`, `LLM_ko` 충실도와 총 처리 건수 `3507` 재검증
+
 ### 2026-03-28 ai-api 문서/아키텍처 산출물 업데이트
 
 - Completed change
@@ -631,3 +666,4267 @@
   - Manual seed expansion is the first experiment that exceeded the previous best baseline `valid_metrics_cpu_compare_medium_relabel_weighted.json` with accuracy `0.4267` and macro F1 `0.3645`.
   - However the confusion matrix shows strong `CALM` and `SAD` bias, while `HAPPY` fell sharply from `0.6146` to `0.2000`.
   - Treat this as the current best macro-F1 experiment, but not a final adopted serving model yet. The next check should focus on the `HAPPY -> CALM` collapse before replacing the learning baseline.
+
+### 2026-03-29 HAPPY -> CALM collapse analysis
+
+- Completed change
+  - Added fixed compare subset helper
+    - `ai-api-fastapi/training/emotion_classifier/scripts/create_fixed_compare_subset.py`
+  - Exported validation misclassification review CSV
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_to_calm_errors_manual_seed_v2.csv`
+  - Created fixed compare inputs that preserve baseline compare `sample_id`
+    - `ai-api-fastapi/training/emotion_classifier/processed/train_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+    - `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+  - Ran partial fixed-compare training and evaluated saved checkpoint
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare/checkpoint-156`
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_checkpoint156.json`
+- Current state check
+  - `manual_relabel_seed_v2.csv` contains only approved relabels for `ANGRY -> SAD`, `ANGRY -> ANXIOUS`, `SAD -> ANXIOUS`.
+  - It does not directly relabel `HAPPY` or `CALM`.
+  - On the sampled compare validation set, `manual_seed_v2` changed only `5` approved rows, while `HAPPY` rows were unchanged as labels and sample IDs.
+  - `HAPPY` prediction drift was model-side:
+    - baseline `HAPPY -> CALM = 21`
+    - manual seed v2 `HAPPY -> CALM = 124`
+    - newly flipped `baseline != CALM` and `v2 = CALM` rows = `107`
+  - Top flipped `emotion_minor`
+    - `감사하는 23`
+    - `기쁨 21`
+    - `신이 난 20`
+    - `자신하는 18`
+    - `만족스러운 12`
+    - `느긋 9`
+- Distribution / subset finding
+  - `train_emotion_mvp_manual_seed_v2_cpu_compare_medium.csv` kept the same `HAPPY`/`CALM` sample IDs as baseline, but negative classes were heavily re-sampled:
+    - train intersections: `ANXIOUS 32/500`, `SAD 25/500`, `ANGRY 21/500`
+    - valid intersections: `ANXIOUS 14/150`, `SAD 11/150`, `ANGRY 25/150`
+  - Fixed compare subset removes that confound and keeps baseline sample IDs:
+    - train actual relabel impact: `3` rows
+    - valid actual relabel impact: `10` rows
+  - Fixed compare distributions
+    - train before: `ANGRY 500`, `ANXIOUS 500`, `CALM 500`, `HAPPY 500`, `SAD 500`
+    - train after: `ANGRY 498`, `ANXIOUS 502`, `CALM 500`, `HAPPY 500`, `SAD 500`
+    - valid before: `ANGRY 150`, `ANXIOUS 150`, `CALM 150`, `HAPPY 150`, `SAD 150`
+    - valid after: `ANGRY 142`, `ANXIOUS 156`, `CALM 150`, `HAPPY 150`, `SAD 152`
+- Verification status
+  - `happy_to_calm_errors_manual_seed_v2.csv` exported with `107` newly flipped rows.
+  - Saved fixed-compare checkpoint metrics at epoch `~1.0`
+    - accuracy `0.3107`
+    - macro F1 `0.1856`
+    - `HAPPY F1 = 0.0390`
+    - `CALM F1 = 0.4529`
+  - Caution
+    - The fixed compare training call timed out before `best/` save, so only `checkpoint-156` metrics are available in this session.
+    - Current `train_emotion_classifier.py` has no resume option, so the interrupted 2-epoch run was not completed.
+- Interpretation
+  - The `manual_seed_v2` collapse is not explained by direct `HAPPY/CALM` relabeling.
+  - The largest confound in the original compare run is that negative-class compare sample IDs were almost entirely replaced after relabeling, while positive-class IDs stayed fixed.
+  - Next experiment should keep approved seed workflow but freeze compare subset IDs first, then add only narrowly reviewed candidates that can improve `HAPPY/CALM` boundary without broad relabeling.
+
+## Immediate next work
+1. Keep serving policy as `TIRED fallback-only` and do not replace the current learning baseline yet.
+2. Review `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_to_calm_errors_manual_seed_v2.csv` first, focusing on `감사하는`, `기쁨`, `신이 난`, `자신하는`, `만족스러운`, `느긋`.
+3. If continuing `manual_seed_v3`, use approved `sample_id` only and target boundary-cleanup candidates, not broad text rules.
+4. Re-run fixed compare training to completion from a fresh session or after adding resume support, using:
+   - train: `ai-api-fastapi/training/emotion_classifier/processed/train_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+   - valid: `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+5. Only compare `manual_seed_v3` against baseline after sample IDs are frozen, so `HAPPY` degradation and macro F1 can be attributed to the seed itself.
+
+### 2026-03-29 training resume support
+
+- Completed change
+  - Updated `ai-api-fastapi/training/emotion_classifier/scripts/train_emotion_classifier.py`
+  - Added `--resume-from-checkpoint`
+  - Added `--auto-resume-last-checkpoint`
+- Verification status
+  - `python -m py_compile ai-api-fastapi/training/emotion_classifier/scripts/train_emotion_classifier.py`
+  - `python ai-api-fastapi/training/emotion_classifier/scripts/train_emotion_classifier.py --help`
+- Resume command for next worker
+  - explicit checkpoint
+    - `C:\programing\mindcompass\ai-api-fastapi\.venv\Scripts\python.exe ai-api-fastapi\training\emotion_classifier\scripts\train_emotion_classifier.py --train-csv C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\processed\train_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv --valid-csv C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\processed\valid_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv --config C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\configs\training_config_cpu.json --label-map C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\configs\label_map.json --output-dir C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\cpu_compare_medium_manual_seed_v2_fixed_compare --resume-from-checkpoint C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\cpu_compare_medium_manual_seed_v2_fixed_compare\checkpoint-156`
+  - automatic latest checkpoint
+    - `C:\programing\mindcompass\ai-api-fastapi\.venv\Scripts\python.exe ai-api-fastapi\training\emotion_classifier\scripts\train_emotion_classifier.py --train-csv C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\processed\train_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv --valid-csv C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\processed\valid_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv --config C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\configs\training_config_cpu.json --label-map C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\configs\label_map.json --output-dir C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\cpu_compare_medium_manual_seed_v2_fixed_compare --auto-resume-last-checkpoint`
+- Caution
+  - Resume must reuse the same train/valid CSV and the same output directory.
+  - The current interrupted fixed compare run still has only `checkpoint-156`, not `best/`.
+
+### 2026-03-29 emotion model registry DB design
+
+- Completed change
+  - Added emotion model registry design note
+    - `docs/ai-api/EMOTION_MODEL_REGISTRY_DB_DESIGN.md`
+  - Added PostgreSQL draft SQL
+    - `docs/sql/emotion_model_registry_draft.sql`
+- Current state confirmation
+  - Current main baseline remains `valid_metrics_cpu_compare_medium_relabel_weighted.json`
+    - accuracy `0.4267`
+    - macro F1 `0.3645`
+  - `manual_seed_v2` is currently the best macro F1 experiment but not yet an active serving replacement
+    - accuracy `0.4427`
+    - macro F1 `0.3888`
+  - `manual_seed_v2_fixed_compare` currently has only checkpoint-level evaluation
+    - accuracy `0.3107`
+    - macro F1 `0.1856`
+  - `tired_experiment_summary.json` recommendation remains `blind-expansion-stop`
+  - Serving policy stays `TIRED fallback-only`
+- Design decision
+  - Recommended MVP shape is a single table `emotion_model_registry`
+  - Store operational summary fields directly in DB
+    - `experiment_name`
+    - `model_name`
+    - `artifact_dir`
+    - `metrics_json_path`
+    - `label_metadata_path`
+    - `macro_f1`
+    - `happy_f1`
+    - `calm_f1`
+    - `fallback_policy`
+    - `training_dataset_tag`
+    - `validation_dataset_tag`
+    - `status`
+    - `is_active`
+    - `created_at`
+    - `updated_at`
+  - Keep large or irregular artifacts outside DB and store only their paths
+    - model binaries
+    - tokenizer files
+    - checkpoint files
+    - candidate/error/prediction CSVs
+    - full metric JSON detail beyond the summary columns
+  - Status model is designed to support
+    - active serving model
+    - approved experiment
+    - rejected experiment
+    - shadow candidate
+  - `TIRED` is not modeled as a separate active serving slot
+    - it remains a fallback policy metadata value: `TIRED_FALLBACK_ONLY`
+- Verification status
+  - Design was derived from current repository artifacts and docs, not from speculative future flows
+  - SQL draft is documentation-level only and was not applied to a real database in this task
+- Next recommended work
+  - Decide whether registry persistence belongs in `ai-api` DB scope or shared internal PostgreSQL scope
+  - Convert the draft into a Flyway proposal only after the owning runtime is fixed
+  - If approval/audit history becomes necessary, add `emotion_model_registry_status_history` as the first extension table
+
+### 2026-03-29 ai-api registry datasource and Flyway bootstrap
+
+- Completed change
+  - Added ai-api PostgreSQL/Flyway dependencies
+    - `ai-api/build.gradle`
+  - Added ai-api datasource and Flyway configuration for `ai_internal` schema
+    - `ai-api/src/main/resources/application.yaml`
+  - Added initial ai-api migration for emotion model registry
+    - `ai-api/src/main/resources/db/migration/V1__emotion_model_registry.sql`
+- Design decision
+  - `ai-api` owns the registry logically, even when the physical PostgreSQL instance is shared
+  - Registry objects are isolated under `ai_internal` schema
+  - Flyway history is separated with `ai_api_flyway_schema_history`
+- Verification status
+  - File-level bootstrap only in this task
+  - Migration was written but not executed against a real database in this session
+- Caution
+  - `AI_DB_*` environment variables override shared `DB_*` values when provided
+  - `baseline-on-migrate: true` is set for safer adoption into a shared database, but the first real migration run should still be checked carefully
+
+### 2026-03-29 ai-api emotion model registry admin API
+
+- Completed change
+  - Added registry domain/dto/repository/service/controller packages under `ai-api`
+  - Added internal admin endpoints
+    - `GET /internal/admin/emotion-models`
+    - `GET /internal/admin/emotion-models/active`
+    - `POST /internal/admin/emotion-models`
+    - `PATCH /internal/admin/emotion-models/{id}/status`
+    - `POST /internal/admin/emotion-models/{id}/activate`
+- Related files
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminController.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/service/EmotionModelRegistryService.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/repository/EmotionModelRegistryRepository.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/dto/*.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/domain/*.java`
+- Execution flow
+  - internal admin caller requests `ai-api`
+  - controller receives registry command
+  - service validates status transition and activation rule
+  - repository reads or updates `ai_internal.emotion_model_registry`
+  - status history is written to `ai_internal.emotion_model_registry_status_history`
+  - response DTO returns the latest registry row
+- Verification status
+  - `.\gradlew.bat compileJava` should stay green after this API addition
+- Caution
+  - `ACTIVE` direct create/update is intentionally blocked and must go through `/activate`
+  - real DB migration execution is still blocked in this session because no DB password was provided
+
+### 2026-03-29 ai-api registry migration live verification
+
+- Completed change
+  - Re-ran `ai-api` startup with real DB password
+  - Confirmed Flyway recognized PostgreSQL `17.6` after adding PostgreSQL database support module
+- Verification status
+  - Flyway log confirmed:
+    - database connection success
+    - schema `ai_internal` current version `1`
+    - `Schema "ai_internal" is up to date. No migration necessary.`
+  - Live endpoint check on running `ai-api`
+    - `GET /health` returned `{"runtime":"spring-ai","status":"ok","service":"ai-api"}`
+    - `GET /internal/admin/emotion-models` returned `[]`
+- Caution
+  - one local `ai-api` process was already using port `8001`, so one boot run attempt ended with port conflict after Flyway verification
+  - registry schema is applied, but no registry row has been inserted yet in this task
+
+### 2026-03-29 ai-api registry baseline row registration
+
+- Completed change
+  - Registered baseline experiment row through live `ai-api` admin API:
+    - `POST /internal/admin/emotion-models`
+  - Activated the same row as the current registry baseline:
+    - `POST /internal/admin/emotion-models/1/activate`
+  - Registered baseline summary
+    - `experiment_name = cpu_compare_medium_relabel_weighted`
+    - `model_name = cpu_compare_medium_relabel_weighted_active5`
+    - `base_model_name = beomi/KcELECTRA-base`
+    - `fallback_policy = TIRED_FALLBACK_ONLY`
+- Verification status
+  - Live API check
+    - `GET /internal/admin/emotion-models` returned one row
+    - `GET /internal/admin/emotion-models/active` returned the same row with `status = ACTIVE`
+  - Direct PostgreSQL check via JDBC (`jshell` + PostgreSQL driver)
+    - `ai_internal.emotion_model_registry`
+      - `id = 1`
+      - `experiment_name = cpu_compare_medium_relabel_weighted`
+      - `status = ACTIVE`
+      - `is_active = true`
+      - `macro_f1 = 0.3645`
+      - `accuracy = 0.4267`
+    - `ai_internal.emotion_model_registry_status_history`
+      - `null -> APPROVED` with reason `created`
+      - `APPROVED -> ACTIVE` with reason `activated`
+- Design decision
+  - Registry row uses the current baseline evaluation JSON:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_relabel_weighted.json`
+  - Registry row points to the active 5-label serving artifact directory:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_relabel_weighted_active5`
+  - `manual_seed_v2` and `manual_seed_v2_fixed_compare` stay non-promoted because the fixed compare gate did not beat the baseline.
+- Next recommended work
+  - If a future candidate beats this gate, register it first as `APPROVED` or `SHADOW`, then switch active through `/activate`.
+  - Add a small internal query endpoint for status history only if registry audit visibility becomes necessary for operators.
+
+### 2026-03-29 ai-api registry status history API
+
+- Completed API
+  - Added internal admin endpoint:
+    - `GET /internal/admin/emotion-models/{id}/history`
+- Related files
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminController.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/service/EmotionModelRegistryService.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/repository/EmotionModelRegistryRepository.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/domain/EmotionModelRegistryStatusHistoryRecord.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/dto/EmotionModelRegistryStatusHistoryResponse.java`
+  - `ai-api/src/test/java/com/mindcompass/aiapi/registry/service/EmotionModelRegistryServiceTest.java`
+- Execution flow
+  - internal admin caller requests `ai-api`
+  - controller receives `{id}/history`
+  - service first verifies that the registry row exists
+  - repository loads ordered rows from `ai_internal.emotion_model_registry_status_history`
+  - response DTO returns latest-first history list
+- Verification status
+  - compile success
+    - `.\gradlew.bat compileJava`
+  - test success
+    - `.\gradlew.bat test --tests com.mindcompass.aiapi.registry.service.EmotionModelRegistryServiceTest`
+  - live runtime verification
+    - `GET /internal/admin/emotion-models/1/history` returned:
+      - `APPROVED -> ACTIVE` with reason `activated`
+      - `null -> APPROVED` with reason `created`
+- Design decision
+  - History endpoint is read-only and scoped per registry id so operators can inspect one experiment safely.
+  - The service returns `404` first when the registry row itself does not exist, instead of silently returning an empty list.
+- Next recommended work
+  - If operators need a combined summary view later, add `GET /internal/admin/emotion-models/{id}` or extend the list response with latest history preview.
+
+### 2026-03-29 ai-api registry single lookup API
+
+- Completed API
+  - Added internal admin endpoint:
+    - `GET /internal/admin/emotion-models/{id}`
+- Related files
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminController.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/service/EmotionModelRegistryService.java`
+  - `ai-api/src/test/java/com/mindcompass/aiapi/registry/service/EmotionModelRegistryServiceTest.java`
+- Execution flow
+  - internal admin caller requests `ai-api`
+  - controller receives `{id}`
+  - service loads one registry row by id
+  - repository reads `ai_internal.emotion_model_registry`
+  - response DTO returns the current snapshot for that experiment
+- Verification status
+  - compile success
+    - `.\gradlew.bat compileJava`
+  - test success
+    - `.\gradlew.bat test --tests com.mindcompass.aiapi.registry.service.EmotionModelRegistryServiceTest`
+  - live runtime verification
+    - `GET /internal/admin/emotion-models/1` returned the active baseline row
+    - `GET /internal/admin/emotion-models/1/history` still returned the matching two-step history
+- Design decision
+  - Single lookup and history are separated so operators can fetch the current snapshot without always loading the full audit list.
+  - Missing ids return `404` through the same service path used by history lookup.
+- Next recommended work
+  - If registry volume grows, add filtering by `status`, `isActive`, or `experimentName` on the list API before adding more endpoints.
+
+### 2026-03-29 manual_seed_v2 fixed compare resume completion
+
+- Completed change
+  - Resumed fixed compare training from:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare/checkpoint-156`
+  - Completed the 2-epoch CPU compare run and confirmed saved artifacts:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare/checkpoint-312`
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare/best`
+  - Re-ran final fixed compare validation evaluation:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_final.json`
+  - Re-ran baseline and manual_seed_v2 best models on the same fixed compare validation CSV:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_relabel_weighted_on_fixed_compare.json`
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_on_fixed_compare.json`
+- Verification status
+  - Resume path worked end-to-end with the existing CLI options:
+    - `--resume-from-checkpoint`
+    - `--auto-resume-last-checkpoint`
+  - Final trainer state:
+    - `best_model_checkpoint = checkpoint-312`
+    - `best_accuracy = 0.3920`
+    - `best_macro_f1 = 0.2974`
+  - `best/label_metadata.json` saved successfully with active 5-label metadata
+- Same fixed compare validation comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - accuracy `0.4267`
+    - macro F1 `0.3648`
+    - `HAPPY F1 = 0.6146`
+    - `CALM F1 = 0.2941`
+    - `HAPPY -> CALM = 21/150`
+  - `manual_seed_v2`
+    - accuracy `0.4067`
+    - macro F1 `0.3484`
+    - `HAPPY F1 = 0.1946`
+    - `CALM F1 = 0.6288`
+    - `HAPPY -> CALM = 124/150`
+  - `manual_seed_v2_fixed_compare`
+    - accuracy `0.3920`
+    - macro F1 `0.2974`
+    - `HAPPY F1 = 0.0132`
+    - `CALM F1 = 0.6087`
+    - `HAPPY -> CALM = 142/150`
+- Interpretation
+  - On the frozen fixed compare validation set, the `HAPPY -> CALM` collapse was not alleviated.
+  - The collapse worsened from baseline `21` to `manual_seed_v2` `124`, and worsened again to `manual_seed_v2_fixed_compare` `142`.
+  - Because the fixed compare validation set keeps sample IDs frozen, this result is no longer explained by negative-class re-sampling churn.
+  - Current learning baseline should remain `cpu_compare_medium_relabel_weighted`.
+  - Serving policy remains `TIRED fallback-only`.
+- Next recommended work
+  - Use the frozen fixed compare validation CSV as the primary gate for any `manual_seed_v3` or boundary-cleanup run.
+  - Review `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_to_calm_errors_manual_seed_v2.csv` and approve only narrow `sample_id` relabels that protect the `HAPPY/CALM` boundary.
+  - Do not promote `manual_seed_v2` or `manual_seed_v2_fixed_compare` to serving or baseline status.
+
+### 2026-03-29 HAPPY/CALM boundary review candidate export
+
+- Completed change
+  - Added review-helper script:
+    - `ai-api-fastapi/training/emotion_classifier/scripts/export_happy_calm_boundary_candidates.py`
+  - Exported conservative review CSVs from `manual_seed_v2` datasets using baseline best model `cpu_compare_medium_relabel_weighted/best`
+    - `ai-api-fastapi/training/emotion_classifier/processed/manual_relabel_candidates/train_happy_calm_boundary_candidates_v1.csv`
+    - `ai-api-fastapi/training/emotion_classifier/processed/manual_relabel_candidates/valid_happy_calm_boundary_candidates_v1.csv`
+- Design decision
+  - Do not auto-approve `CALM -> HAPPY` relabels yet.
+  - First narrow the review surface with model-guided candidates only:
+    - current label = `CALM`
+    - baseline best prediction = `HAPPY`
+    - prediction score >= `0.372`
+    - keep highest-confidence rows first
+  - Candidate CSV keeps `approved_label` blank so the next step remains human-reviewed `sample_id` approval, consistent with the existing manual seed workflow.
+- Verification status
+  - `python -m py_compile ai-api-fastapi/training/emotion_classifier/scripts/export_happy_calm_boundary_candidates.py`
+  - Export result counts
+    - train candidates `120`
+    - valid candidates `80`
+  - Candidate emotion_minor mix
+    - train: `안도 52`, `편안한 42`, `신뢰하는 26`
+    - valid: `편안한 36`, `안도 27`, `신뢰하는 17`
+  - Score range
+    - train `0.3752 ~ 0.3807`
+    - valid `0.3738 ~ 0.3808`
+- Interpretation
+  - The baseline model still sees a large portion of current `CALM` rows as `HAPPY`, so broad auto-relabel is still risky.
+  - The exported CSVs are intentionally capped and sorted so the next review can start from higher-confidence boundary cases instead of scanning the full `CALM` pool.
+  - This should be used as a review queue, not as an automatic v3 seed.
+- Next recommended work
+  - Review the top rows in `valid_happy_calm_boundary_candidates_v1.csv` first and approve only clearly `HAPPY` cases into a new `manual_relabel_seed_v3.csv`.
+  - After approval, apply the v3 seed on top of `manual_seed_v2` datasets and evaluate on the frozen fixed compare validation CSV before any full compare claim.
+
+### 2026-03-29 manual_seed_v3 HAPPY boundary candidate narrowing
+
+- Completed change
+  - Aggregated `manual_seed_v2` validation `HAPPY -> CALM` error CSV by `emotion_minor`
+    - source:
+      - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_to_calm_errors_manual_seed_v2.csv`
+  - Exported narrowed review candidate CSV for `manual_seed_v3`
+    - `ai-api-fastapi/training/emotion_classifier/processed/manual_relabel_candidates/manual_seed_v3_happy_boundary_candidates.csv`
+- Current state confirmation
+  - `happy_to_calm_errors_manual_seed_v2.csv` row count = `107`
+  - all rows are validation `HAPPY` samples that baseline predicted as `HAPPY` but `manual_seed_v2` predicted as `CALM`
+  - no row in this error CSV has `manual_relabel_reason`, so the collapse is not explained by direct approved relabel on these same rows
+- Error distribution by `emotion_minor`
+  - `감사하는`: errors `23` / HAPPY total `130` / collapse rate `0.1769`
+  - `기쁨`: errors `21` / HAPPY total `103` / collapse rate `0.2039`
+  - `신이 난`: errors `20` / HAPPY total `114` / collapse rate `0.1754`
+  - `자신하는`: errors `18` / HAPPY total `117` / collapse rate `0.1538`
+  - `만족스러운`: errors `12` / HAPPY total `124` / collapse rate `0.0968`
+  - `느긋`: errors `9` / HAPPY total `102` / collapse rate `0.0882`
+  - `흥분`: errors `4` / HAPPY total `62` / collapse rate `0.0645`
+- Design decision
+  - `manual_seed_v3` review start point is limited to the top 4 boundary buckets only:
+    - `감사하는`
+    - `기쁨`
+    - `신이 난`
+    - `자신하는`
+  - narrowed candidate count = `82`
+  - `만족스러운`, `느긋`, `흥분` are not removed forever, but are deferred until the top 4 bucket review result is known
+  - continue using approved `sample_id` only and avoid broad text or `emotion_major` relabel rules
+- Next recommended work
+  - manually review `manual_seed_v3_happy_boundary_candidates.csv`
+  - approve only rows that are clearly closer to `CALM` than `HAPPY`, or clearly mislabeled in the source
+  - if approvals are created, save them as `manual_relabel_seed_v3.csv`
+  - apply them to train/valid CSVs, then run the fixed compare gate before any promotion decision
+
+### 2026-03-29 manual_seed_v3 HAPPY boundary priority20 shortlist
+
+- Completed change
+  - Created first-pass priority shortlist for manual review
+    - `ai-api-fastapi/training/emotion_classifier/processed/manual_relabel_candidates/manual_seed_v3_happy_boundary_priority20.csv`
+- Selection rule
+  - source = `happy_to_calm_errors_manual_seed_v2.csv`
+  - limited to top 4 boundary buckets:
+    - `감사하는`
+    - `기쁨`
+    - `신이 난`
+    - `자신하는`
+  - selected `5` rows per bucket
+  - within each bucket, sorted by higher `v2_score` and then lower `baseline_score`
+- Shortlist size / distribution
+  - total rows = `20`
+  - `감사하는 = 5`
+  - `기쁨 = 5`
+  - `신이 난 = 5`
+  - `자신하는 = 5`
+- Practical intent
+  - this file is not an approved relabel seed yet
+  - it is only a faster review queue so the next worker can inspect the most collapse-prone boundary rows first
+  - if these 20 rows do not justify enough approved relabels, expand review back to the full `manual_seed_v3_happy_boundary_candidates.csv`
+- Next recommended work
+  - open `manual_seed_v3_happy_boundary_priority20.csv` first
+  - mark only clearly justified rows into a new approved seed file
+  - do not auto-approve by bucket name alone
+
+### 2026-03-29 manual_seed_v3 priority20 manual read pass
+
+- Completed change
+  - manually read the `20` shortlist rows in:
+    - `ai-api-fastapi/training/emotion_classifier/processed/manual_relabel_candidates/manual_seed_v3_happy_boundary_priority20.csv`
+- Current read result
+  - no row in the priority20 shortlist was clearly safer to relabel from `HAPPY` to `CALM`
+  - many rows are explicit positive-valence texts rather than neutral-rest states
+    - gratitude with strong positive outcome
+    - celebration / achievement
+    - excitement about good news
+    - confidence after praise or success
+- Practical interpretation
+  - this shortlist behaves more like evidence that the current model is collapsing positive-affect language into `CALM`
+  - it is not good evidence that these labels should be manually changed to `CALM`
+  - so creating `manual_relabel_seed_v3.csv` from these `20` rows would likely increase the same failure mode we are trying to fix
+- Decision
+  - approved relabel count from `priority20` review = `0`
+  - do not create a `manual_relabel_seed_v3.csv` from this shortlist
+  - keep `manual_seed_v3_happy_boundary_priority20.csv` as a review artifact only
+- Next recommended work
+  - if continuing manual review, expand carefully beyond `priority20` but keep the same rule:
+    - approve only if the text is truly closer to `CALM` than `HAPPY`
+  - prefer inspecting training-side boundary examples next, not only validation errors
+  - if repeated review continues to produce zero justified approvals, stop the `HAPPY -> CALM` relabel direction and switch to model-side mitigation instead of more seed expansion
+
+### 2026-03-29 ai-api registry list filter expansion
+
+- Completed API
+  - Extended internal admin endpoint:
+    - `GET /internal/admin/emotion-models?status=...&isActive=...&isShadow=...&experimentName=...`
+- Related files
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminController.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/service/EmotionModelRegistryService.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/repository/EmotionModelRegistryRepository.java`
+  - `ai-api/src/test/java/com/mindcompass/aiapi/registry/service/EmotionModelRegistryServiceTest.java`
+- Execution flow
+  - internal admin caller requests `ai-api`
+  - controller parses optional query params `status`, `isActive`, `isShadow`, `experimentName`
+  - service validates `status` against the registry enum when present
+  - repository builds a filtered SQL query for `ai_internal.emotion_model_registry`
+  - response DTO returns matching rows in latest-created-first order
+- Verification status
+  - targeted service test covers:
+    - valid filter forwarding
+    - invalid `status` rejection with `400 BAD_REQUEST`
+  - compile/test/live results are recorded from this task run
+- Design decision
+  - `status` uses exact enum filtering
+  - `isActive` uses exact boolean filtering
+  - `isShadow` uses exact boolean filtering
+  - `experimentName` uses case-insensitive partial match with `ILIKE`
+- Caution
+  - invalid `status` values fail fast in service validation before the repository query runs
+- Next recommended work
+  - if operator needs metric filters later, extend this list API before adding a separate search endpoint
+
+### 2026-03-29 ai-api registry shadow candidate live registration
+
+- Completed change
+  - Registered live shadow candidate row through:
+    - `POST /internal/admin/emotion-models`
+  - Added explicit query param names in:
+    - `ai-api/src/main/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminController.java`
+  - Added controller regression test for optional filter forwarding:
+    - `ai-api/src/test/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminControllerTest.java`
+- Design decision
+  - `cpu_compare_medium_manual_seed_v2` is the most natural shadow candidate for the current registry design.
+  - reason:
+    - macro F1 is higher than the active baseline
+    - but activation is still blocked by the `HAPPY -> CALM` collapse noted in prior evaluation records
+  - so this row is kept as:
+    - `status = SHADOW`
+    - `is_active = false`
+    - `is_shadow = true`
+- Live registration result
+  - created row:
+    - `id = 2`
+    - `experiment_name = cpu_compare_medium_manual_seed_v2`
+    - `model_name = cpu_compare_medium_manual_seed_v2`
+    - `status = SHADOW`
+    - `is_active = false`
+    - `is_shadow = true`
+    - `macro_f1 = 0.3888`
+    - `accuracy = 0.4427`
+    - `fallback_policy = TIRED_FALLBACK_ONLY`
+  - artifact mapping used for the shadow row:
+    - `C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\cpu_compare_medium_manual_seed_v2`
+    - `C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\evaluation\valid_metrics_cpu_compare_medium_manual_seed_v2.json`
+    - `C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\cpu_compare_medium_manual_seed_v2\best\label_metadata.json`
+- Verification status
+  - compile success
+    - `.\gradlew.bat compileJava`
+  - test success
+    - `.\gradlew.bat test --tests com.mindcompass.aiapi.registry.service.EmotionModelRegistryServiceTest --tests com.mindcompass.aiapi.registry.controller.EmotionModelRegistryAdminControllerTest`
+  - live runtime restart success
+    - rebuilt `ai-api` jar and restarted `http://localhost:8001`
+  - live API verification
+    - `GET /health` -> `status = ok`
+    - `GET /internal/admin/emotion-models?isShadow=true` -> only row `id = 2`
+    - `GET /internal/admin/emotion-models?isShadow=false` -> only row `id = 1`
+    - `GET /internal/admin/emotion-models/2` -> shadow row snapshot returned
+    - `GET /internal/admin/emotion-models/2/history` -> `null -> SHADOW` with reason `created`
+- Current blocker or caution
+  - the first live check after row creation showed that optional list filters were not applied in the running jar.
+  - root cause was controller query param binding depending on runtime parameter-name metadata.
+  - fixed by declaring explicit `@RequestParam(name = "...")` values and re-verifying after restart.
+  - `SHADOW` creation currently does not populate `approved_at`, which is consistent with the current service logic but should be kept in mind if operators later want shadow approval timestamps.
+- Next recommended work
+  - add `PATCH /internal/admin/emotion-models/{id}/status` live verification for:
+    - `SHADOW -> APPROVED`
+    - `SHADOW -> REJECTED`
+  - decide whether shadow registration should also stamp `approved_at` when the team interprets shadow as an approved observation candidate.
+
+### 2026-03-29 ai-api registry shadow status transition live verification
+
+- Completed change
+  - live verified `PATCH /internal/admin/emotion-models/{id}/status`
+  - added service regression coverage for shadow transition timestamps/history:
+    - `ai-api/src/test/java/com/mindcompass/aiapi/registry/service/EmotionModelRegistryServiceTest.java`
+- Live verification scope
+  - row `id = 2`
+    - `cpu_compare_medium_manual_seed_v2`
+    - verified `SHADOW -> APPROVED`
+  - row `id = 3`
+    - `cpu_compare_medium_manual_seed_v2_fixed_compare`
+    - created as shadow candidate and verified `SHADOW -> REJECTED`
+- Live verification result
+  - `id = 2`
+    - current status = `APPROVED`
+    - `is_active = false`
+    - `is_shadow = true`
+    - `approved_at` stamped
+    - history:
+      - `null -> SHADOW` reason `created`
+      - `SHADOW -> APPROVED` with approval note reason
+  - `id = 3`
+    - current status = `REJECTED`
+    - `is_active = false`
+    - `is_shadow = true`
+    - `rejected_at` stamped
+    - history:
+      - `null -> SHADOW` reason `created`
+      - `SHADOW -> REJECTED` with rejection reason
+- Verification status
+  - test success
+    - `.\gradlew.bat test --tests com.mindcompass.aiapi.registry.service.EmotionModelRegistryServiceTest --tests com.mindcompass.aiapi.registry.controller.EmotionModelRegistryAdminControllerTest`
+  - compile success
+    - `.\gradlew.bat compileJava`
+  - live API verification
+    - `PATCH /internal/admin/emotion-models/2/status`
+    - `PATCH /internal/admin/emotion-models/3/status`
+    - `GET /internal/admin/emotion-models/2/history`
+    - `GET /internal/admin/emotion-models/3/history`
+    - `GET /internal/admin/emotion-models?status=APPROVED`
+    - `GET /internal/admin/emotion-models?status=REJECTED`
+    - `GET /internal/admin/emotion-models?isShadow=true`
+- Design decision
+  - `manual_seed_v2` row는 운영상 더 유의미한 후보라 `APPROVED + inactive` 상태로 유지했다.
+  - `manual_seed_v2_fixed_compare` row는 fixed compare gate와 boundary 붕괴가 모두 좋지 않아 rejection audit row로 남겼다.
+- Current blocker or caution
+  - 현재 구현에서 `is_shadow`는 상태와 독립적인 source/flag 성격으로 유지된다.
+  - 그래서 `APPROVED` 또는 `REJECTED`로 바뀐 뒤에도 `is_shadow = true`가 계속 남는다.
+  - live 결과 기준 `GET /internal/admin/emotion-models?isShadow=true`는 "현재 shadow 상태"가 아니라 "shadow candidate로 등록된 이력이 있는 row" 목록처럼 동작한다.
+  - 만약 운영자가 "현재 shadow 상태 row만" 보고 싶다면 `status=SHADOW` 또는 `status=SHADOW&isShadow=true`를 함께 쓰는 쪽이 안전하다.
+- Next recommended work
+  - decide whether `is_shadow` should stay as a historical flag or be auto-cleared when a row leaves `SHADOW`
+  - if operators want stricter semantics, add either:
+    - service rule to clear `is_shadow` on non-shadow transitions
+    - or a dedicated query such as `currentShadowOnly=true`
+
+### 2026-03-29 HAPPY-CALM model-side mitigation prep
+
+- Completed change
+  - kept baseline and serving policy unchanged
+    - baseline = `cpu_compare_medium_relabel_weighted`
+    - serving policy = `TIRED fallback-only`
+  - confirmed again that broad `HAPPY -> CALM` manual relabel is not justified
+    - `manual_seed_v3_happy_boundary_priority20.csv` approved relabel count = `0`
+  - added training-side guard support in:
+    - `ai-api-fastapi/training/emotion_classifier/scripts/train_emotion_classifier.py`
+    - `ai-api-fastapi/training/emotion_classifier/scripts/evaluate_emotion_classifier.py`
+  - added next experiment configs:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_v1.json`
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_v1.json`
+  - added focused comparison artifacts:
+    - `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v2_fixed_compare_happy_calm.csv`
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Current state confirmation
+  - fixed compare summary now shows the collapse trend in one file:
+    - baseline `HAPPY -> CALM = 21/150`
+    - `manual_seed_v2 = 124/150`
+    - `manual_seed_v2_fixed_compare_final = 142/150`
+  - this supports the current interpretation:
+    - the problem is not lack of more broad relabel candidates
+    - the problem is that the model accepts the shifted HAPPY/CALM boundary too aggressively once trained
+- Design decision
+  - stop expanding `HAPPY -> CALM` seed relabels unless a future manual read finds clearly justified sample-level errors
+  - move the next experiment gate from only `eval_macro_f1` to a boundary-aware metric:
+    - `eval_happy_calm_macro_f1`
+  - keep the first comparison narrow and controlled:
+    - v1 = same training setup, but best checkpoint selected by `eval_happy_calm_macro_f1`
+    - v2 = same as v1, plus `label_smoothing = 0.05`
+  - the goal is not to maximize `CALM` recall alone
+  - the goal is to prevent `HAPPY` positive-affect texts from collapsing into `CALM` while keeping the existing fixed compare gate
+- Verification status
+  - syntax check
+    - `python -m py_compile ai-api-fastapi/training/emotion_classifier/scripts/train_emotion_classifier.py`
+    - `python -m py_compile ai-api-fastapi/training/emotion_classifier/scripts/evaluate_emotion_classifier.py`
+  - focused validation CSV check
+    - `valid_emotion_mvp_manual_seed_v2_fixed_compare_happy_calm.csv` contains `HAPPY 150`, `CALM 150`
+- Next recommended work
+  - run both new configs on:
+    - train `ai-api-fastapi/training/emotion_classifier/processed/train_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+    - valid `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+  - after each run, compare at minimum:
+    - `macro_f1`
+    - `happy_calm_macro_f1`
+    - `happy_to_calm_count`
+    - `happy_to_calm_rate`
+    - `calm_to_happy_count`
+  - do not promote any candidate unless it improves the HAPPY/CALM guard without regressing the current baseline gate materially
+
+### 2026-03-29 HAPPY-CALM guard experiment execution
+
+- Completed change
+  - ran guard-metric-only experiment
+    - config: `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_v1.json`
+    - train csv: `ai-api-fastapi/training/emotion_classifier/processed/train_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+    - valid csv: `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+    - artifact: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_v1`
+    - evaluation: `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_v1.json`
+  - ran guard-metric + label-smoothing experiment
+    - config: `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_v1.json`
+    - train csv: `ai-api-fastapi/training/emotion_classifier/processed/train_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+    - valid csv: `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+    - artifact: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_v1`
+    - evaluation: `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_v1.json`
+  - refreshed comparison table
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Verification status
+  - both runs completed on the frozen fixed compare train/valid CSVs
+  - evaluation JSONs were checked on the same fixed compare gate using:
+    - `macro_f1`
+    - `happy_calm_macro_f1`
+    - `happy_to_calm_count`
+    - `happy_to_calm_rate`
+    - `calm_to_happy_count`
+  - `happy_calm_fixed_compare_summary.csv` was updated to match the final evaluation JSON files
+- Fixed compare result summary
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - accuracy `0.4267`
+    - macro F1 `0.3648`
+    - `HAPPY F1 = 0.6146`
+    - `CALM F1 = 0.2941`
+    - `happy_calm_macro_f1 = 0.4868`
+    - `HAPPY -> CALM = 21/150`
+    - `CALM -> HAPPY = 113/150`
+  - guard metric only
+    - accuracy `0.3800`
+    - macro F1 `0.2508`
+    - `HAPPY F1 = 0.5577`
+    - `CALM F1 = 0.0000`
+    - `happy_calm_macro_f1 = 0.3266`
+    - `HAPPY -> CALM = 0/150`
+    - `CALM -> HAPPY = 149/150`
+  - guard metric + label smoothing
+    - accuracy `0.3613`
+    - macro F1 `0.2411`
+    - `HAPPY F1 = 0.6030`
+    - `CALM F1 = 0.1600`
+    - `happy_calm_macro_f1 = 0.3936`
+    - `HAPPY -> CALM = 7/150`
+    - `HAPPY -> CALM rate = 0.0467`
+    - `CALM -> HAPPY = 115/150`
+- Interpretation
+  - selecting checkpoints by `eval_happy_calm_macro_f1` alone does change the HAPPY/CALM boundary, but it over-corrected into a reverse collapse
+  - guard-metric-only run stopped `HAPPY -> CALM`, but became unusable because `CALM -> HAPPY = 149/150`
+  - adding `label_smoothing = 0.05` softened that reverse collapse and produced the better of the two new runs on the focused HAPPY/CALM boundary
+  - however, neither run beats the current baseline gate:
+    - both have lower accuracy than baseline
+    - both have lower macro F1 than baseline
+    - label smoothing run improved `HAPPY -> CALM` to `7/150`, but `CALM -> HAPPY = 115/150` is still too high
+  - conclusion: current model-side mitigation is moving the boundary, but not yet balancing it well enough to replace the baseline
+- Decision
+  - keep baseline = `cpu_compare_medium_relabel_weighted`
+  - keep serving policy = `TIRED fallback-only`
+  - keep broad manual relabel expansion stopped
+  - do not promote either guard experiment
+  - treat `guard_metric + label_smoothing` as the only cautious follow-up branch, but still below baseline
+- Next recommended work
+  - if model-side mitigation continues, start from the label-smoothing branch, not the guard-metric-only branch
+  - keep the same frozen fixed compare train/valid CSVs and change only one knob at a time
+  - recommended next knobs:
+    - slightly lower learning rate than `2e-5`
+    - keep `label_smoothing = 0.05`
+    - add a more balanced guard target so `CALM -> HAPPY` is penalized together with `HAPPY -> CALM`
+    - keep fixed compare validation as the first gate
+  - do not register or promote either guard experiment in the registry
+
+### 2026-03-29 manual_seed_v3 HAPPY/CALM boundary seed review and fixed compare evaluation
+
+- Completed change
+  - reviewed `valid_happy_calm_boundary_candidates_v1.csv` first and approved only conservative `sample_id` rows with explicit positive-affect wording
+    - approved valid ids `10`
+      - `valid-001279`
+      - `valid-001601`
+      - `valid-002112`
+      - `valid-002113`
+      - `valid-002115`
+      - `valid-002290`
+      - `valid-003308`
+      - `valid-004184`
+      - `valid-005814`
+      - `valid-006021`
+  - added a small matching train supplement `15`
+    - source file:
+      - `ai-api-fastapi/training/emotion_classifier/processed/manual_relabel_candidates/manual_relabel_seed_v3.csv`
+  - applied v3 seed on top of `manual_seed_v2` full datasets
+    - `ai-api-fastapi/training/emotion_classifier/processed/train_emotion_mvp_manual_seed_v3.csv`
+    - `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v3.csv`
+  - rebuilt frozen fixed compare subsets from the same v2 reference sample ids
+    - `ai-api-fastapi/training/emotion_classifier/processed/train_emotion_mvp_manual_seed_v3_fixed_compare_medium.csv`
+    - `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v3_fixed_compare_medium.csv`
+  - trained and evaluated new compare artifact
+    - artifact dir:
+      - `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v3_fixed_compare`
+    - evaluation json:
+      - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v3_fixed_compare_final.json`
+- Design decision
+  - broad text rule was not used
+  - `emotion_major` wide relabel was not used
+  - only approved `sample_id` rows were relabeled to `HAPPY`
+  - `TIRED` policy remains `fallback-only`
+  - current baseline stays `cpu_compare_medium_relabel_weighted`
+- Fixed compare subset impact
+  - full dataset relabel impact
+    - train changed `15`
+    - valid changed `10`
+  - frozen fixed compare subset actual relabel impact
+    - train changed `5`
+      - `train-035385`
+      - `train-015085`
+      - `train-028160`
+      - `train-020628`
+      - `train-011298`
+    - valid changed `2`
+      - `valid-002115`
+      - `valid-005814`
+  - fixed compare label distribution after v3
+    - train: `ANGRY 498`, `ANXIOUS 502`, `CALM 495`, `HAPPY 505`, `SAD 500`
+    - valid: `ANGRY 142`, `ANXIOUS 156`, `CALM 148`, `HAPPY 152`, `SAD 152`
+- Verification status
+  - seed apply
+    - `apply_manual_relabel_seed.py` changed count
+      - train `15`
+      - valid `10`
+  - fixed compare subset rebuild
+    - `create_fixed_compare_subset.py` changed count
+      - train `5`
+      - valid `2`
+  - training completion
+    - first run stopped at timeout but saved `checkpoint-156`
+    - resumed successfully from:
+      - `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v3_fixed_compare/checkpoint-156`
+    - final best checkpoint:
+      - `checkpoint-312`
+  - same fixed compare validation comparison
+    - baseline `cpu_compare_medium_relabel_weighted`
+      - accuracy `0.4267`
+      - macro F1 `0.3648`
+      - `HAPPY F1 = 0.6146`
+      - `CALM F1 = 0.2941`
+      - `HAPPY -> CALM = 21/150`
+    - `manual_seed_v2`
+      - accuracy `0.4067`
+      - macro F1 `0.3484`
+      - `HAPPY F1 = 0.1946`
+      - `CALM F1 = 0.6288`
+      - `HAPPY -> CALM = 124/150`
+    - `manual_seed_v3_fixed_compare`
+      - accuracy `0.3480`
+      - macro F1 `0.2231`
+      - `HAPPY F1 = 0.0130`
+      - `CALM F1 = 0.5258`
+      - `HAPPY -> CALM = 147/152`
+      - focused metrics
+        - `happy_calm_macro_f1 = 0.3406`
+        - `calm_to_happy_count = 0`
+- Interpretation
+  - this conservative v3 seed did not reduce the `HAPPY -> CALM` collapse on the frozen fixed compare gate
+  - the collapse worsened again from `manual_seed_v2 124/150` to `manual_seed_v3_fixed_compare 147/152`
+  - because only `sample_id`-level narrow relabels were used and the fixed compare ids stayed frozen, this result further supports that the current failure mode is model-side boundary shift, not a lack of more seed relabel volume
+  - do not promote `manual_seed_v3_fixed_compare` to baseline or serving
+- Next recommended work
+  - keep `manual_relabel_seed_v3.csv` as a documented review attempt, but stop expanding this direction for now
+  - return to model-side mitigation experiments using the fixed compare gate:
+    - `training_config_cpu_happy_calm_guard_metric_v1.json`
+    - `training_config_cpu_happy_calm_guard_metric_label_smoothing_v1.json`
+  - compare future runs primarily on:
+    - `macro_f1`
+    - `happy_calm_macro_f1`
+    - `happy_to_calm_count`
+    - `happy_to_calm_rate`
+  - baseline remains:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_relabel_weighted_active5`
+
+### 2026-03-29 ERD Cloud MVP 추천 SQL 초안 추가
+
+- Completed change
+  - ERD Cloud에서 바로 검토할 수 있는 추천 SQL 초안 추가
+    - `docs/sql/erdcloud_mvp_recommended_schema.sql`
+- Design decision
+  - 현재 backend-api 기준 실제 운영 테이블 8개는 그대로 유지
+    - `users`
+    - `user_settings`
+    - `refresh_tokens`
+    - `diaries`
+    - `diary_emotions`
+    - `diary_ai_analyses`
+    - `chat_sessions`
+    - `chat_messages`
+  - 확장 후보는 MVP 흐름에 바로 도움이 되는 2개만 추천 초안에 포함
+    - `safety_events`
+    - `ai_response_logs`
+  - `monthly_reports`는 현재 구현이 저장형이 아니라 조회 시점 집계형이라 추천 초안에서 제외
+- Verification status
+  - `backend-api/src/main/resources/db/migration/V1__init.sql` ~ `V6__diary_risk_fields.sql` 기준으로 현재 물리 스키마 확인
+  - `docs/DB_TABLE_SPECIFICATION.md`와 현재 운영 범위를 교차 확인
+- Current blocker or caution
+  - 추천 SQL에는 아직 운영 반영 전 후보 테이블이 포함되어 있으므로, Flyway 적용 전에는 실제 API owner와 저장 책임을 다시 확정해야 한다.
+  - `status`, `response_mode`, `risk_level` 같은 문자열 허용값은 추후 enum 정책이 바뀌면 함께 조정해야 한다.
+- Next recommended work
+  - 먼저 `safety_events` 채택 여부를 결정
+  - 채택 시 diary/chat 안전 분기에서 어떤 시점에 이벤트를 남길지 서비스 책임을 확정
+  - `ai_response_logs`는 개인정보 마스킹 기준이 정해진 후 실제 적용 검토
+
+### 2026-03-29 Postman API 명세 초안 추가
+
+- Completed change
+  - 업로드한 API 명세서 이미지 스타일을 참고한 Postman용 API 명세 문서 추가
+    - `docs/POSTMAN_API_SPEC.md`
+- Design decision
+  - 현재 `backend-api`에 실제 구현된 공개 API를 기준으로 문서화
+    - Auth
+    - Users
+    - Diaries
+    - Calendar
+    - Chat
+    - Reports
+  - 이미지에 있었지만 아직 프로젝트에 없는 `Personas`, `Contents`, `Payments`는 미구현 후보 API로 별도 분리
+- Verification status
+  - 실제 컨트롤러 기준 엔드포인트 확인
+    - `backend-api/src/main/java/com/mindcompass/api/auth/controller/AuthController.java`
+    - `backend-api/src/main/java/com/mindcompass/api/user/controller/UserController.java`
+    - `backend-api/src/main/java/com/mindcompass/api/diary/controller/DiaryController.java`
+    - `backend-api/src/main/java/com/mindcompass/api/calendar/controller/CalendarController.java`
+    - `backend-api/src/main/java/com/mindcompass/api/chat/controller/ChatController.java`
+    - `backend-api/src/main/java/com/mindcompass/api/report/controller/ReportController.java`
+- Current blocker or caution
+  - 문서의 JSON 예시는 Postman 이해를 돕기 위한 대표 예시이며, 실제 필드명은 DTO 변경 시 함께 갱신해야 한다.
+  - Users 설정 수정 API는 문서상 후보로만 분류했고 현재 컨트롤러에는 아직 없다.
+- Next recommended work
+  - 이 문서를 기반으로 Postman Collection JSON과 Environment JSON을 생성
+  - 로그인 요청에 test script를 넣어 `accessToken`, `refreshToken` 자동 저장 구성
+
+### 2026-03-29 Postman Collection / Environment JSON 추가
+
+- Completed change
+  - Postman import용 컬렉션 JSON 추가
+    - `docs/postman/MindCompass.postman_collection.json`
+  - Postman local 환경 JSON 추가
+    - `docs/postman/MindCompass.local.postman_environment.json`
+- Design decision
+  - 컬렉션은 현재 실제 구현된 공개 API만 포함
+    - Auth
+    - Users
+    - Diaries
+    - Calendar
+    - Chat
+    - Reports
+  - 컬렉션 기본 인증은 `Bearer {{accessToken}}`로 두고, auth 요청만 `noauth`로 override
+  - 로그인/토큰 재발급 요청에는 Postman test script를 넣어 `accessToken`, `refreshToken` 자동 저장
+  - 일기 생성/채팅 세션 생성 요청에는 `diaryId`, `sessionId` 자동 저장
+- Verification status
+  - JSON 파싱 확인
+    - `MindCompass.postman_collection.json` = ok
+    - `MindCompass.local.postman_environment.json` = ok
+- Current blocker or caution
+  - 응답 JSON 구조는 현재 대표 DTO 기준 예시이므로, 실제 DTO 변경 시 컬렉션 예시도 같이 갱신해야 한다.
+  - 컬렉션의 본문 예시는 import 안정성을 위해 ASCII 중심 샘플로 작성했다.
+- Next recommended work
+  - 필요하면 QA용 / dev용 / local용 환경 파일을 분리
+  - 로그인 후 자동으로 bearer auth가 적용되는지 실제 Postman import로 확인
+
+### 2026-03-29 Postman 응답 검증 테스트 보강
+
+- Completed change
+  - `docs/postman/MindCompass.postman_collection.json`에 주요 요청별 Postman test script 보강
+- Design decision
+  - 테스트는 너무 DTO 결합도가 높지 않게 아래 수준으로 구성
+    - 상태 코드 검증
+    - JSON 응답 여부 검증
+    - 핵심 필드 존재 검증
+    - 로그인/재발급 후 토큰 저장 검증
+    - 일기/채팅 세션 생성 후 ID 저장 검증
+- Verification status
+  - 컬렉션 JSON 파싱 확인 = ok
+  - 로그인 요청 test script 구조 확인 = ok
+- Current blocker or caution
+  - 일부 응답 DTO는 추후 필드명이 바뀌면 Postman test script도 같이 조정해야 한다.
+  - 현재 테스트는 smoke test 중심이라 배열 길이, 상세 값 일치까지는 강하게 고정하지 않았다.
+- Next recommended work
+  - 실제 Postman에서 collection runner로 순차 실행 검증
+  - 필요하면 401/404 등 실패 케이스 전용 컬렉션도 추가
+### 2026-03-29 ai-api registry shadow semantics stabilization
+
+- Completed API
+  - extended internal admin list endpoint:
+    - `GET /internal/admin/emotion-models?status=...&isActive=...&isShadow=...&experimentName=...&currentShadowOnly=...`
+- Design decision
+  - `is_shadow` is fixed as a historical/source flag meaning "registered as a shadow candidate".
+  - it remains independent from the current `status`.
+  - live rows keep this lineage as-is:
+    - `id = 2` -> `status = APPROVED`, `is_shadow = true`
+    - `id = 3` -> `status = REJECTED`, `is_shadow = true`
+  - to support operator intent for "currently in shadow observation only", a separate `currentShadowOnly` filter was added instead of auto-clearing `is_shadow`.
+- Related files
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminController.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/service/EmotionModelRegistryService.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/repository/EmotionModelRegistryRepository.java`
+  - `ai-api/src/test/java/com/mindcompass/aiapi/registry/service/EmotionModelRegistryServiceTest.java`
+  - `ai-api/src/test/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminControllerTest.java`
+  - `docs/ai-api/EMOTION_MODEL_REGISTRY_DB_DESIGN.md`
+- Execution flow
+  - internal admin caller sends optional filters to `ai-api`
+  - controller binds `status`, `isActive`, `isShadow`, `experimentName`, `currentShadowOnly`
+  - service validates `status` and forwards the final filter set
+  - repository keeps `is_shadow` as exact flag filtering and additionally maps:
+    - `currentShadowOnly=true` -> `status = SHADOW`
+    - `currentShadowOnly=false` -> `status <> SHADOW`
+  - response DTO returns both the current `status` and the historical `isShadow` flag
+- Verification status
+  - test success
+    - `.\gradlew.bat test --tests com.mindcompass.aiapi.registry.service.EmotionModelRegistryServiceTest --tests com.mindcompass.aiapi.registry.controller.EmotionModelRegistryAdminControllerTest`
+  - compile success
+    - `.\gradlew.bat compileJava`
+  - live API verification
+    - runtime: `http://localhost:8004`
+    - `GET /internal/admin/emotion-models?isShadow=true&currentShadowOnly=true`
+    - `GET /internal/admin/emotion-models?isShadow=true&currentShadowOnly=false`
+    - `GET /internal/admin/emotion-models?currentShadowOnly=true`
+    - `GET /internal/admin/emotion-models?currentShadowOnly=false&status=APPROVED`
+- Live result summary
+  - `GET /internal/admin/emotion-models?isShadow=true&currentShadowOnly=true` -> `[]`
+    - current live DB has no row whose current `status` is `SHADOW`
+  - `GET /internal/admin/emotion-models?isShadow=true&currentShadowOnly=false` -> rows `id = 2`, `id = 3`
+    - both rows keep `is_shadow = true` while their current statuses are `APPROVED` and `REJECTED`
+  - `GET /internal/admin/emotion-models?currentShadowOnly=true` -> `[]`
+  - `GET /internal/admin/emotion-models?currentShadowOnly=false&status=APPROVED` -> row `id = 2`
+  - plain `isShadow=true` remains backward compatible as "was registered as a shadow candidate"
+- Current blocker or caution
+  - `currentShadowOnly=false` is an exclusion filter, so omit it entirely when no current-status narrowing is intended.
+  - if operators later want a simpler UI, prefer clearer preset labels or Swagger examples over another DB semantic change.
+- Next recommended work
+  - add Swagger examples for:
+    - historical shadow lineage lookup
+    - current shadow queue lookup
+  - keep existing live rows untouched unless the team explicitly decides on a DB backfill/migration
+
+### 2026-03-29 ai-api registry admin Swagger clarification
+
+- Completed change
+  - strengthened Swagger/OpenAPI description for:
+    - `GET /internal/admin/emotion-models`
+  - clarified the difference between:
+    - `isShadow`
+    - `currentShadowOnly`
+  - added endpoint summary/description and query parameter descriptions/examples in:
+    - `ai-api/src/main/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminController.java`
+  - added Swagger UI ready-to-use query combination examples for:
+    - `isShadow=true`
+    - `currentShadowOnly=true`
+    - `isShadow=true&currentShadowOnly=false`
+  - added OpenAPI runtime dependencies in:
+    - `ai-api/build.gradle`
+- Design decision
+  - `isShadow` stays documented as a historical lineage/source flag, not a current-status flag.
+  - `currentShadowOnly` stays documented as the current `status=SHADOW` filter.
+  - the API behavior itself was not changed in this task; only operator-facing OpenAPI clarity was improved.
+- Verification status
+  - test success
+    - `.\gradlew.bat test --tests com.mindcompass.aiapi.registry.service.EmotionModelRegistryServiceTest --tests com.mindcompass.aiapi.registry.controller.EmotionModelRegistryAdminControllerTest`
+  - compile success
+    - `.\gradlew.bat compileJava`
+  - live runtime verification
+    - launched verification runtime on `http://localhost:8004`
+    - `GET /actuator/health` = `UP`
+    - `GET /swagger-ui/index.html` = `200`
+    - `GET /v3/api-docs` = `200`
+    - generated OpenAPI confirmed:
+      - summary = `감정 모델 registry 목록 조회`
+      - endpoint description explains the `isShadow` vs `currentShadowOnly` difference
+      - endpoint description includes three query combination examples for common operator intent
+      - `isShadow` parameter description = historical shadow candidate lineage/source flag
+      - `currentShadowOnly` parameter description = current `status=SHADOW` filter
+    - live list API still works with the clarified semantics:
+      - `GET /internal/admin/emotion-models?isShadow=true&currentShadowOnly=false`
+- Current blocker or caution
+  - `springdoc` was not previously wired in `ai-api`, so runtime verification required dependency alignment.
+  - `io.swagger.core.v3:swagger-annotations` had to be pinned to `2.2.29` to avoid `NoSuchMethodError` during `/v3/api-docs` generation.
+- Next recommended work
+  - if operators want even faster recognition in Swagger UI, add example combinations such as:
+    - historical shadow lineage lookup = `isShadow=true`
+    - current shadow queue lookup = `currentShadowOnly=true`
+    - shadow lineage but not currently shadow = `isShadow=true&currentShadowOnly=false`
+
+### 2026-03-29 ai-api registry admin Swagger endpoint usability refinement
+
+- Completed change
+  - expanded operator-facing Swagger/OpenAPI guidance for registry admin endpoints beyond the list filter API:
+    - `GET /internal/admin/emotion-models/active`
+    - `GET /internal/admin/emotion-models/{id}`
+    - `GET /internal/admin/emotion-models/{id}/history`
+    - `POST /internal/admin/emotion-models`
+    - `PATCH /internal/admin/emotion-models/{id}/status`
+    - `POST /internal/admin/emotion-models/{id}/activate`
+  - added endpoint summary/description and response code documentation in:
+    - `ai-api/src/main/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminController.java`
+  - added Swagger request body examples for:
+    - trained shadow candidate registration
+    - APPROVED status transition
+    - REJECTED status transition
+  - added DTO schema field descriptions/examples in:
+    - `ai-api/src/main/java/com/mindcompass/aiapi/registry/dto/CreateEmotionModelRegistryRequest.java`
+    - `ai-api/src/main/java/com/mindcompass/aiapi/registry/dto/UpdateEmotionModelRegistryStatusRequest.java`
+    - `ai-api/src/main/java/com/mindcompass/aiapi/registry/dto/EmotionModelRegistryResponse.java`
+    - `ai-api/src/main/java/com/mindcompass/aiapi/registry/dto/EmotionModelRegistryStatusHistoryResponse.java`
+  - updated registry design doc note in:
+    - `docs/ai-api/EMOTION_MODEL_REGISTRY_DB_DESIGN.md`
+- Design decision
+  - keep improving Swagger in the order that matches operator workflow:
+    - find candidate in list
+    - inspect row/detail/history
+    - register or update status
+    - activate for serving
+  - prioritize "what this endpoint is for" and "what payload shape should look like" over adding more filter semantics.
+  - API behavior itself was not changed in this task; only Swagger/OpenAPI readability and schema examples were improved.
+- Verification status
+  - test success
+    - `.\gradlew.bat test --tests com.mindcompass.aiapi.registry.service.EmotionModelRegistryServiceTest --tests com.mindcompass.aiapi.registry.controller.EmotionModelRegistryAdminControllerTest`
+  - compile success
+    - `.\gradlew.bat compileJava`
+  - live runtime verification
+    - launched verification runtime on `http://localhost:8004`
+    - `GET /actuator/health` = `UP`
+    - `GET /swagger-ui/index.html` = `200`
+    - `GET /v3/api-docs` = `200`
+    - generated OpenAPI confirmed:
+      - list summary/description remained intact
+      - endpoint summaries were exposed for:
+        - `GET /active`
+        - `GET /{id}`
+        - `GET /{id}/history`
+        - `POST /`
+        - `PATCH /{id}/status`
+        - `POST /{id}/activate`
+      - create request body example summary = `TRAINED shadow candidate 등록 예시`
+      - status update request body examples include both `approveCandidate` and `rejectCandidate`
+      - schema descriptions were exposed for:
+        - `EmotionModelRegistryResponse`
+        - `EmotionModelRegistryStatusHistoryResponse`
+- Current blocker or caution
+  - Swagger wording now covers the operator flow, but response schemas are still large because the registry response DTO intentionally exposes many artifact and metric fields.
+  - if the team later wants an even cleaner Swagger UI, the next step should be grouping admin operations by workflow or adding concise response examples for `/active` and `/history`.
+- Next recommended work
+  - next Swagger polish candidate:
+    - response example payloads for `/active`
+    - response example payloads for `/{id}`
+    - response example payloads for `/{id}/history`
+  - if operators still hesitate at state transitions, consider adding one concise description block for the recommended workflow:
+    - list -> detail/history -> status update -> activate
+
+### 2026-03-29 ai-api registry admin Swagger response examples
+
+- Completed change
+  - added operator-facing response payload examples in:
+    - `ai-api/src/main/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminController.java`
+  - covered the most frequently inspected read endpoints:
+    - `GET /internal/admin/emotion-models/active`
+    - `GET /internal/admin/emotion-models/{id}`
+    - `GET /internal/admin/emotion-models/{id}/history`
+  - updated note in:
+    - `docs/ai-api/EMOTION_MODEL_REGISTRY_DB_DESIGN.md`
+- Design decision
+  - prioritize example payloads on read endpoints first because operator hesitation in Swagger usually happens after clicking a row detail, not while reading schema names.
+  - examples were written to reflect real registry usage patterns:
+    - current ACTIVE baseline row
+    - APPROVED row with `isShadow=true`
+    - latest-first status history list
+  - API behavior itself was not changed in this task; only response examples were added to OpenAPI.
+- Verification status
+  - test success
+    - `.\gradlew.bat test --tests com.mindcompass.aiapi.registry.service.EmotionModelRegistryServiceTest --tests com.mindcompass.aiapi.registry.controller.EmotionModelRegistryAdminControllerTest`
+  - compile success
+    - `.\gradlew.bat compileJava`
+  - live runtime verification
+    - launched verification runtime on `http://localhost:8004`
+    - `GET /actuator/health` = `UP`
+    - `GET /swagger-ui/index.html` = `200`
+    - `GET /v3/api-docs` = `200`
+    - generated OpenAPI confirmed response examples for:
+      - `GET /internal/admin/emotion-models/active` = `현재 serving baseline row 예시`
+      - `GET /internal/admin/emotion-models/{id}` = `승인된 shadow lineage row 예시`
+      - `GET /internal/admin/emotion-models/{id}/history` = `상태 변경 이력 목록 예시`
+- Current blocker or caution
+  - response examples are illustrative and should stay aligned with real JSON property names generated by the DTO records.
+  - if record-to-JSON naming or null-handling policy changes later, these examples must be refreshed together.
+- Next recommended work
+  - next Swagger polish candidate is a short list response example for filtered shadow scenarios:
+    - `isShadow=true`
+    - `currentShadowOnly=true`
+    - `isShadow=true&currentShadowOnly=false`
+  - if operator education is still needed, add one short workflow note to the tag description:
+    - register -> review detail/history -> update status -> activate
+
+### 2026-03-29 ai-api registry admin Swagger list response examples
+
+- Completed change
+  - added list response examples for shadow-related filter combinations in:
+    - `ai-api/src/main/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminController.java`
+  - covered operator-facing query combinations:
+    - `isShadow=true`
+    - `currentShadowOnly=true`
+    - `isShadow=true&currentShadowOnly=false`
+  - updated registry design note in:
+    - `docs/ai-api/EMOTION_MODEL_REGISTRY_DB_DESIGN.md`
+- Design decision
+  - list endpoint was the last missing piece for fast Swagger scanning because operators can now see:
+    - what query to use
+    - what array shape comes back
+    - how `status` and `shadow` differ in returned rows
+  - example arrays were written to emphasize the fixed semantics:
+    - historical lineage can stay `shadow=true` even when current `status` is `APPROVED` or `REJECTED`
+    - `currentShadowOnly=true` is about current queue membership, not lineage history
+  - API behavior itself was not changed in this task; only OpenAPI examples were added.
+- Verification status
+  - test success
+    - `.\gradlew.bat test --tests com.mindcompass.aiapi.registry.service.EmotionModelRegistryServiceTest --tests com.mindcompass.aiapi.registry.controller.EmotionModelRegistryAdminControllerTest`
+  - compile success
+    - `.\gradlew.bat compileJava`
+  - live runtime verification
+    - launched verification runtime on `http://localhost:8004`
+    - `GET /actuator/health` = `UP`
+    - `GET /swagger-ui/index.html` = `200`
+    - `GET /v3/api-docs` = `200`
+    - generated OpenAPI confirmed list response examples for:
+      - `historicalShadowLineageList` = `isShadow=true 결과 예시`
+      - `currentShadowQueueList` = `currentShadowOnly=true 결과 예시`
+      - `shadowLineageButNotCurrentShadowList` = `isShadow=true&currentShadowOnly=false 결과 예시`
+- Current blocker or caution
+  - these examples are illustrative and should stay aligned with current DTO JSON property names and the agreed `is_shadow` semantics.
+  - if the team ever changes shadow semantics or backfills live rows, the example payloads must be updated together.
+- Next recommended work
+  - next Swagger polish candidate is a short workflow note in the tag description or summary grouping by operator task.
+  - after that, if still needed, add concise error response examples for:
+    - unsupported `status`
+    - missing registry id
+
+### 2026-03-29 Postman collection usability hardening
+
+- Completed change
+  - improved Postman collection import usability in:
+    - `docs/postman/MindCompass.postman_collection.json`
+  - expanded local environment variables in:
+    - `docs/postman/MindCompass.local.postman_environment.json`
+  - kept collection display name as Korean:
+    - `마인드 컴패스 API`
+- Design decision
+  - moved `DELETE diary` out of the main diary flow into a dedicated cleanup folder so the default run order no longer breaks `chat session` creation with `sourceDiaryId`
+  - added failure-case requests for:
+    - validation `400`
+    - protected API without token `403`
+    - protected API with invalid token `403`
+    - missing resource `404`
+  - aligned failure expectations with actual Spring Security integration behavior:
+    - protected API missing/invalid token is currently `403 Forbidden`, not `401 Unauthorized`
+  - added import-friendly helper variables:
+    - `invalidAccessToken`
+    - `missingDiaryId`
+    - `missingSessionId`
+  - added stronger Postman test scripts for:
+    - `accessToken` / `refreshToken` save verification
+    - `diaryId` / `sessionId` save verification
+    - common error response field checks where backend returns JSON error bodies
+- Verification status
+  - JSON parse success
+    - `MindCompass.postman_collection.json` = ok
+    - `MindCompass.local.postman_environment.json` = ok
+  - manual structure check
+    - folder order now ends with `7. 실패 케이스` -> `8. 정리`
+    - collection top-level name confirmed as `마인드 컴패스 API`
+- Current blocker or caution
+  - `403` failure responses for unauthenticated/invalid-token requests are verified from current backend tests, so Postman expectations should stay `403` unless Spring Security policy changes later.
+  - some business `404`/`400` messages can change if service-layer exception text changes, so the collection validates common error fields more than exact full messages.
+- Next recommended work
+  - if the team wants runner-ready regression packs, split the collection further into:
+    - happy-path smoke
+    - auth/security negative
+    - resource not-found negative
+  - if QA uses multiple runtimes, add separate Postman environments for:
+    - local
+    - dev
+    - qa
+
+### 2026-03-29 Postman API 안내 슬라이드 추가
+
+- Completed change
+  - added editable slide source:
+    - `docs/slides/postman-api-guide/build_postman_api_guide_slides.js`
+  - added presentation deck:
+    - `docs/slides/postman-api-guide/mindcompass-postman-api-guide.pptx`
+  - rendered slide PNGs for visual verification:
+    - `docs/slides/postman-api-guide/rendered/슬라이드1.PNG`
+    - `docs/slides/postman-api-guide/rendered/슬라이드2.PNG`
+    - `docs/slides/postman-api-guide/rendered/슬라이드3.PNG`
+    - `docs/slides/postman-api-guide/rendered/슬라이드4.PNG`
+    - `docs/slides/postman-api-guide/rendered/슬라이드5.PNG`
+- Design decision
+  - slide style follows the user-provided image direction:
+    - wide title band
+    - table-like domain summary
+    - Postman import guide
+    - happy-path execution flow
+    - failure-case / handoff summary
+  - content scope stays aligned to the current implemented `backend-api` public APIs only
+  - collection and environment JSON are explained as import/run artifacts, not as end-user reading documents
+- Verification status
+  - pptx generated successfully with:
+    - `node docs\slides\postman-api-guide\build_postman_api_guide_slides.js`
+  - visual render succeeded via PowerPoint COM export
+  - rendered slides manually checked for:
+    - title/header layout
+    - domain summary table readability
+    - import steps readability
+    - execution flow readability
+    - failure-case summary readability
+- Current blocker or caution
+  - helper overlap warnings still report some panel/text containment as overlap, but rendered PNG review confirmed the delivered slide visuals are readable.
+  - local rebuild currently reuses the existing slide dependency set from:
+    - `docs/slides/ai-api-system-architecture/node_modules`
+- Next recommended work
+  - if the team wants a handout version, export the same deck to PDF and link it from a short markdown usage guide
+  - if future APIs are added, keep the slide domain matrix and the Postman collection in sync in the same task
+
+### 2026-03-29 ai-api registry state transition hardening and admin ops API expansion
+
+- Completed API
+  - `GET /internal/admin/emotion-models/summary`
+  - `GET /internal/admin/emotion-models/{id}/transitions`
+  - strengthened existing transition APIs:
+    - `PATCH /internal/admin/emotion-models/{id}/status`
+
+### 2026-03-29 Postman API 안내 슬라이드 레이아웃 조정
+
+- Completed change
+  - `docs/slides/postman-api-guide/build_postman_api_guide_slides.js` 레이아웃을 업로드 참고 이미지 방향으로 재구성
+  - `docs/slides/postman-api-guide/mindcompass-postman-api-guide.pptx` 재생성
+  - `docs/slides/postman-api-guide/rendered/슬라이드1.PNG`
+  - `docs/slides/postman-api-guide/rendered/슬라이드2.PNG`
+  - `docs/slides/postman-api-guide/rendered/슬라이드3.PNG`
+  - `docs/slides/postman-api-guide/rendered/슬라이드4.PNG`
+  - `docs/slides/postman-api-guide/rendered/슬라이드5.PNG`
+- Design decision
+  - 구현/미구현 구분보다 업로드된 참고 이미지의 전달 방식과 표 구조를 우선해서 슬라이드를 맞췄다.
+  - 도메인 표 슬라이드는 현재 Postman 컬렉션 범위에만 제한하지 않고 제품 설명용 API 범위를 한 장 표로 정리했다.
+  - 우상단 링크형 제목, 넓은 상단 밴드, 6열 도메인 표 구성을 참고 이미지 톤에 가깝게 맞췄다.
+  - Postman import, 실행 순서, 실패 케이스, 전달 파일은 후속 슬라이드에서 별도로 정리해 발표/공유 흐름을 유지했다.
+- Verification status
+  - deck build success
+    - `node docs\slides\postman-api-guide\build_postman_api_guide_slides.js`
+  - PowerPoint COM render success
+    - `docs/slides/postman-api-guide/rendered/*.PNG` 재생성 확인
+  - visual check
+    - 2번 슬라이드가 업로드 참고 이미지와 유사한 6열 표 레이아웃으로 정리된 것 확인
+    - import / flow / failure summary 슬라이드가 같은 톤으로 유지되는 것 확인
+  - local limitation
+    - slides skill 번들 검증 스크립트는 현재 로컬 Python 패키지 누락으로 실행하지 못함
+      - `pdf2image`
+      - `numpy`
+- Current blocker or caution
+  - 2번 슬라이드는 제품 설명용 표라서 현재 구현 범위와 1:1로 일치하지 않을 수 있다. 실제 Postman 실행 범위는 컬렉션 JSON과 spec 문서를 함께 봐야 한다.
+  - 참고 이미지 기준의 우상단 링크 문구는 디자인 요소로 사용한 것이며 실제 하이퍼링크 동작은 넣지 않았다.
+  - 추후 후보 API 명칭이 바뀌면 2번 슬라이드 표와 `docs/POSTMAN_API_SPEC.md`를 같이 갱신해야 한다.
+- Next recommended work
+  - 필요하면 동일한 시각 스타일로 handout/PDF 버전도 추가 생성
+  - 향후 후보 API 확정 시 2번 슬라이드 표, `docs/POSTMAN_API_SPEC.md`, Postman 컬렉션 범위를 같은 세션에서 함께 정리
+
+### 2026-03-29 Postman 도메인 표 2단 재배치
+
+- Completed change
+  - 2번 슬라이드 도메인 표를 1단 6열 대신 2단 구조로 재배치
+    - 상단: 인증 / 사용자 / 일기 / 캘린더 / 채팅
+    - 하단: 리포트 / 페르소나 / 콘텐츠 / 결제
+  - 구현 API와 미구현 후보 API를 각 칸 안에서 `[구현]`, `[미구현]` 표기로 함께 정리
+- Design decision
+  - 일기와 리포트까지 포함하면 한 줄 6칸 구조에서는 가독성이 떨어져, 참고 이미지 톤은 유지하되 2단 표로 확장했다.
+  - 발표/공유 시 한 장에서 제품 API 범위를 모두 볼 수 있게 하는 것을 우선했다.
+- Verification status
+  - `node docs\slides\postman-api-guide\build_postman_api_guide_slides.js`
+  - PowerPoint COM 렌더로 `docs/slides/postman-api-guide/rendered/슬라이드2.PNG` 재확인
+  - 시각 확인 결과:
+    - 일기 / 리포트 도메인이 같은 표 슬라이드 안에 추가됨
+    - 구현/미구현 상태가 한 장에서 함께 보임
+- Current blocker or caution
+  - 2단 표는 제품 범위 설명용이므로 실제 Postman 실행 가능 범위는 컬렉션 JSON과 다를 수 있다.
+  - 후보 API 명칭이 바뀌면 표 내용도 같이 맞춰야 한다.
+- Next recommended work
+  - 후보 API가 더 늘어나면 2단 표 기준으로만 유지하지 말고, 필요 시 2장 분할 버전도 함께 준비
+
+### 2026-03-30 Apidog import용 OpenAPI JSON 추가
+
+- Completed change
+  - Apidog import용 OpenAPI JSON 생성 스크립트 추가
+    - `docs/apidog/build_apidog_openapi.py`
+  - Apidog import용 OpenAPI JSON 산출물 생성
+    - `docs/apidog/MindCompass.apidog.openapi.json`
+- Design decision
+  - Apidog에서 폴더처럼 보이도록 operation tag 첫 순서를 아래처럼 고정했다.
+    - `구현 API`
+    - `미구현 API`
+  - 상태 구분 tag는 아래처럼 별도로 넣었다.
+    - `Implemented`
+    - `Planned`
+  - 미구현 후보 API는 description에 `Not implemented yet.`를 명시하고, 성공 기준 request/response example을 함께 넣었다.
+  - 실제 서버 호출 가능 여부와 문서 목적을 분리하기 위해 planned endpoint도 OpenAPI path에 포함했다.
+- Scope
+  - implemented public API
+    - Auth
+    - Users
+    - Diaries
+    - Calendar
+    - Chat
+    - Reports
+  - planned API
+    - Authentication 확장
+    - Users 확장
+    - Calendar timeline
+    - Chat usage/history
+    - Persona
+    - Contents
+    - Payments
+- Verification status
+  - JSON generated by:
+    - `python docs/apidog/build_apidog_openapi.py`
+  - JSON parse success
+    - `openapi = 3.0.3`
+    - `paths = 37`
+    - first folder tag = `구현 API`
+    - planned description sample includes `Not implemented yet.`
+- Current blocker or caution
+  - 이 OpenAPI 문서는 Apidog import와 제품 범위 설명을 위한 명세서다. planned endpoint는 실제 backend-api에서 아직 동작하지 않을 수 있다.
+  - 추후 실제 path, DTO, 인증 정책이 바뀌면 Postman 컬렉션, Apidog OpenAPI JSON, 슬라이드, spec 문서를 함께 갱신해야 한다.
+- Next recommended work
+  - Apidog import 후 폴더 정렬이 기대와 다르면 tag 순서/그룹 표시 방식을 한 번 더 조정
+  - 실제 구현이 시작되는 planned endpoint부터 request/response example을 실제 DTO 기준으로 좁혀가기
+    - `POST /internal/admin/emotion-models/{id}/activate`
+- Design decision
+  - registry status transition is now validated in service code instead of leaving all non-`ACTIVE` transitions open.
+  - allowed status update flow was fixed conservatively:
+    - `TRAINED -> APPROVED | REJECTED | SHADOW | ARCHIVED`
+    - `APPROVED -> REJECTED | SHADOW | ARCHIVED`
+    - `SHADOW -> APPROVED | REJECTED | ARCHIVED`
+    - `REJECTED -> ARCHIVED`
+    - `ARCHIVED -> none`
+    - `ACTIVE -> status update API blocked`
+  - `approvalNote` is required when moving to `APPROVED`.
+  - `rejectionReason` is required when moving to `REJECTED`.
+  - `activate` is now allowed only for `APPROVED` rows.
+  - calling `activate` on the already active row is treated as a safe no-op so operators can re-run it without mutating history.
+  - when a non-shadow row moves to `SHADOW`, `is_shadow` is now promoted to `true` automatically so lineage is preserved.
+- Related files
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminController.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/service/EmotionModelRegistryService.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/repository/EmotionModelRegistryRepository.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/dto/EmotionModelRegistryAdminSummaryResponse.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/dto/EmotionModelRegistryAvailableTransitionsResponse.java`
+  - `ai-api/src/test/java/com/mindcompass/aiapi/registry/service/EmotionModelRegistryServiceTest.java`
+  - `ai-api/src/test/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminControllerTest.java`
+  - `docs/ai-api/EMOTION_MODEL_REGISTRY_DB_DESIGN.md`
+- Execution flow
+  - admin caller requests summary:
+    - controller -> service -> repository status count query + active row lookup -> summary DTO response
+  - admin caller requests transitions:
+    - controller -> service -> current registry row lookup -> allowed transition matrix evaluation -> transition DTO response
+  - admin caller updates status:
+    - controller -> service validation -> repository update + status history insert -> latest row response
+  - admin caller activates row:
+    - controller -> service checks `APPROVED` only -> current active row demotion if needed -> target row activation -> history insert -> latest row response
+- Verification status
+  - test success
+    - `.\gradlew.bat test --tests com.mindcompass.aiapi.registry.service.EmotionModelRegistryServiceTest --tests com.mindcompass.aiapi.registry.controller.EmotionModelRegistryAdminControllerTest`
+  - compile success
+    - `.\gradlew.bat compileJava`
+  - live runtime verification
+    - runtime: `http://localhost:8004`
+    - `GET /actuator/health` = `UP`
+    - `GET /internal/admin/emotion-models/summary`
+      - result summary: `totalCount=3`, `activeCount=1`, `approvedCount=1`, `rejectedCount=1`, `shadowCount=0`, `shadowLineageCount=2`, `activeRegistryId=1`
+    - `GET /internal/admin/emotion-models/2/transitions`
+      - result summary: `currentStatus=APPROVED`, `allowedStatusUpdates=[REJECTED, SHADOW, ARCHIVED]`, `canActivate=true`
+    - `POST /internal/admin/emotion-models/1/activate`
+      - result summary: active row re-call returned `200` and preserved row `id=1` as `ACTIVE`
+    - non-mutating validation checks
+      - `PATCH /internal/admin/emotion-models/1/status` with `REJECTED` -> `400`
+      - `PATCH /internal/admin/emotion-models/3/status` with `APPROVED` -> `400`
+- Current blocker or caution
+  - Spring Boot default error JSON does not expose `ResponseStatusException` reason text in the body, so live `400` verification currently confirms HTTP status and path rather than the detailed reason string.
+  - if admin UI later needs button-level hints beyond allowed next statuses, add a dedicated `blockedReason` field rather than weakening the transition rules.
+- Next recommended work
+  - if the team wants richer admin operations next, add:
+    - artifact path existence/health check API
+    - promotion checklist validation API
+    - explicit archive/unarchive workflow decision
+
+### 2026-03-29 ai-api registry artifact health check API
+
+- Completed API
+  - `GET /internal/admin/emotion-models/{id}/artifact-health`
+- Design decision
+  - artifact health check는 DB 값만 다시 보여주는 API가 아니라, registry row에 저장된 경로가 현재 파일시스템에 실제로 존재하는지 운영 관점에서 바로 확인하는 API로 설계했다.
+  - 점검 대상은 다음 5개로 고정했다.
+    - `artifactDir`
+    - `metricsJsonPath`
+    - `labelMetadataPath`
+    - `trainingConfigPath`
+    - `labelMapPath`
+  - 필수 경로는 `artifactDir`, `metricsJsonPath`이고, 나머지는 설정되어 있을 때만 함께 점검한다.
+  - 응답은 다음 두 수준으로 나눴다.
+    - `requiredArtifactsHealthy`
+    - `overallHealthy`
+  - 그래서 activate 직전 필수 경로만 먼저 볼 수도 있고, 선택 경로까지 포함한 전체 운영 상태도 함께 볼 수 있다.
+- Related files
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminController.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/service/EmotionModelRegistryService.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/dto/EmotionModelRegistryArtifactHealthResponse.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/dto/EmotionModelRegistryArtifactHealthItemResponse.java`
+  - `ai-api/src/test/java/com/mindcompass/aiapi/registry/service/EmotionModelRegistryServiceTest.java`
+  - `ai-api/src/test/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminControllerTest.java`
+  - `docs/ai-api/EMOTION_MODEL_REGISTRY_DB_DESIGN.md`
+- Execution flow
+  - admin caller requests `{id}/artifact-health`
+  - controller receives registry id
+  - service loads the current registry row
+  - service resolves each configured path with Java `Path`
+  - service checks:
+    - configured 여부
+    - exists 여부
+    - directory 기대값과 실제 타입 일치 여부
+  - response DTO returns:
+    - row identity
+    - required/overall health
+    - missing required item names
+    - missing optional item names
+    - per-path detail list
+- Verification status
+  - test success
+    - `.\gradlew.bat test --tests com.mindcompass.aiapi.registry.service.EmotionModelRegistryServiceTest --tests com.mindcompass.aiapi.registry.controller.EmotionModelRegistryAdminControllerTest`
+  - compile success
+    - `.\gradlew.bat compileJava`
+  - live runtime verification
+    - runtime: `http://localhost:8004`
+    - `GET /actuator/health` = `UP`
+    - `GET /internal/admin/emotion-models/1/artifact-health`
+      - result summary:
+        - `requiredArtifactsHealthy = true`
+        - `overallHealthy = true`
+        - all 5 checked paths exist
+    - `GET /internal/admin/emotion-models/2/artifact-health`
+      - result summary:
+        - `requiredArtifactsHealthy = true`
+        - `overallHealthy = true`
+        - manual seed v2 row paths also resolved successfully
+- Current blocker or caution
+  - 현재 구현은 로컬 파일시스템 존재 여부만 검사한다.
+  - 파일 열기/JSON 파싱/모델 내용 검증까지는 하지 않으므로, 다음 단계가 필요하면 별도 integrity check API로 분리하는 편이 안전하다.
+- Next recommended work
+  - artifact JSON parse / schema check API
+  - active candidate promotion checklist API
+  - activate 전에 자동으로 artifact health를 함께 확인하는 guard 적용 여부 검토
+
+### 2026-03-29 ai-api registry artifact JSON parse and promotion checklist APIs
+
+- Completed API
+  - `GET /internal/admin/emotion-models/{id}/artifact-json-check`
+  - `GET /internal/admin/emotion-models/{id}/promotion-checklist`
+- Design decision
+  - `artifact-json-check`는 파일 존재 여부 다음 단계로, 실제 JSON을 읽어서 최소 스키마를 만족하는지 확인하는 API로 설계했다.
+  - 점검 대상 JSON은 다음 4개다.
+    - `metricsJsonPath`
+    - `labelMetadataPath`
+    - `trainingConfigPath`
+    - `labelMapPath`
+  - 필수 JSON은 `metricsJsonPath` 하나로 두고, 나머지는 설정되어 있으면 함께 검사한다.
+  - `promotion-checklist`는 운영 승격 판단을 한 번에 보이게 하려고 다음 체크를 묶었다.
+    - required artifact health
+    - required JSON schema health
+    - fallback policy
+    - active 5-label contract
+    - status openness / active 승격 가능 status
+    - baseline 대비 `macroF1`
+    - baseline 대비 `happyF1`
+    - baseline 대비 `calmF1`
+    - baseline 대비 `HAPPY -> CALM`
+  - 추천 결과는 보수적으로 4단계로 나눴다.
+    - `BLOCKED`
+    - `SHADOW_ONLY`
+    - `ACTIVE_CANDIDATE`
+    - `ACTIVE_ALREADY`
+- Related files
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminController.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/service/EmotionModelRegistryService.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/dto/EmotionModelRegistryArtifactJsonCheckResponse.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/dto/EmotionModelRegistryArtifactJsonCheckItemResponse.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/dto/EmotionModelRegistryPromotionChecklistResponse.java`
+  - `ai-api/src/main/java/com/mindcompass/aiapi/registry/dto/EmotionModelRegistryPromotionChecklistItemResponse.java`
+  - `ai-api/src/test/java/com/mindcompass/aiapi/registry/service/EmotionModelRegistryServiceTest.java`
+  - `ai-api/src/test/java/com/mindcompass/aiapi/registry/controller/EmotionModelRegistryAdminControllerTest.java`
+  - `docs/ai-api/EMOTION_MODEL_REGISTRY_DB_DESIGN.md`
+  - `docs/ai-api/EMOTION_MODEL_PROMOTION_CHECKLIST.md`
+- Execution flow
+  - `artifact-json-check`
+    - controller -> service -> JSON file read -> required key presence + 최소 스키마 확인 -> item list와 parse/schema 요약 반환
+  - `promotion-checklist`
+    - controller -> service -> current row lookup
+    - service가 내부적으로 artifact health / JSON check를 재사용
+    - label metadata와 metrics JSON에서 핵심 값 파싱
+    - active baseline row와 비교
+    - checklist item 생성 후 recommendation 계산
+- Verification status
+  - test success
+    - `.\gradlew.bat test --tests com.mindcompass.aiapi.registry.service.EmotionModelRegistryServiceTest --tests com.mindcompass.aiapi.registry.controller.EmotionModelRegistryAdminControllerTest`
+  - compile success
+    - `.\gradlew.bat compileJava`
+  - live runtime verification
+    - runtime: `http://localhost:8004`
+    - `GET /internal/admin/emotion-models/1/artifact-json-check`
+      - result summary:
+        - `parseHealthy = true`
+        - `requiredSchemaHealthy = true`
+        - `overallSchemaHealthy = true`
+    - `GET /internal/admin/emotion-models/2/artifact-json-check`
+      - result summary:
+        - `parseHealthy = true`
+        - `requiredSchemaHealthy = true`
+        - `overallSchemaHealthy = true`
+    - `GET /internal/admin/emotion-models/1/promotion-checklist`
+      - result summary:
+        - `recommendation = ACTIVE_ALREADY`
+        - `readyForActive = true`
+        - all 10 checks passed
+    - `GET /internal/admin/emotion-models/2/promotion-checklist`
+      - result summary:
+        - `recommendation = SHADOW_ONLY`
+        - `readyForShadow = true`
+        - `readyForActive = false`
+        - failed gates:
+          - `happyF1Gate`
+          - `happyToCalmGate`
+- Current blocker or caution
+  - `artifact-json-check`는 최소 필드 존재와 기본 타입만 확인한다.
+  - `promotion-checklist`는 현재 문서에 있는 핵심 gate 중심 MVP 검증이며, confusion matrix 전체 품질이나 error sample CSV까지는 아직 포함하지 않는다.
+  - baseline이 없는 환경에서는 비교 gate가 비어 recommendation이 더 보수적으로 나올 수 있다.
+- Next recommended work
+  - activate 전에 `promotion-checklist`를 자동 선행 검증할지 정책 결정
+  - error sample CSV 기반 추가 gate 설계 여부 검토
+  - FastAPI serving runtime의 실제 `EMOTION_MODEL_DIR`와 active registry path 정합성 점검 API 추가
+
+### 2026-03-29 student-depression-text dataset status check and processing handoff
+
+- Completed work
+  - verified the current output state in:
+    - `C:\Users\wonbin\OneDrive\바탕 화면\mindcompass project\csv파일들\student-depression-text`
+  - confirmed existing files before this task:
+    - `2) Student-Depression-Text (Kaggle).txt`
+    - `2) Student-Depression-Text (Kaggle)_ko.txt`
+    - `Depression_Text.xlsx`
+  - exported the source workbook to:
+    - `C:\Users\wonbin\OneDrive\바탕 화면\mindcompass project\csv파일들\student-depression-text\Depression_Text.csv`
+  - created a cleaned and translation-ready processed file:
+    - `C:\Users\wonbin\OneDrive\바탕 화면\mindcompass project\csv파일들\student-depression-text\Depression_Text_processed.csv`
+  - completed translated output files:
+    - `C:\Users\wonbin\OneDrive\바탕 화면\mindcompass project\csv파일들\student-depression-text\Depression_Text_ko.csv`
+    - `C:\Users\wonbin\OneDrive\바탕 화면\mindcompass project\csv파일들\student-depression-text\Depression_Text_ko.xlsx`
+  - added processing columns in `Depression_Text_processed.csv`:
+    - `row_id`
+    - `label_name`
+    - `gender_ko`
+    - `age_category_ko`
+    - `text_ko`
+- Verification status
+  - `Depression_Text.xlsx`
+    - sheet count: `1`
+    - sheet name: `TEXT`
+    - used range rows: `7490` including header
+  - `Depression_Text.csv`
+    - total data rows exported: `7489`
+    - trailing empty rows included from workbook: `13`
+  - `Depression_Text_processed.csv`
+    - valid processed rows after blank-text removal: `7476`
+    - label distribution:
+      - `non_depression=6252`
+      - `depression=1224`
+    - gender distribution:
+      - `Male=4053`
+      - `Female=3423`
+    - age category distribution:
+      - `Teen Age=3508`
+      - `Young Age=3968`
+  - `Depression_Text_ko.csv`
+    - total rows: `7476`
+    - translation completion:
+      - `text_ko=7476/7476`
+    - pass-through rows kept as source text because they were garbled / opaque social text:
+      - `176`
+  - `Depression_Text_ko.xlsx`
+    - created from the completed CSV for Excel review and handoff
+- Current blocker or caution
+  - the first translation attempt failed with `401 invalid_api_key`, and later long-running batches also hit intermittent `520` / timeout errors.
+  - to finish the dataset safely, `scripts/translate_mental_health_csv.py` was hardened so failed batches split into smaller retries instead of stopping the whole run.
+  - a subset of short noisy rows was intentionally left as source text in `text_ko` because the original content was garbled enough that forced translation would be less reliable than preserving the source token string.
+- Next recommended work
+  - if the team wants stricter dataset normalization later, review the `176` pass-through rows and decide whether to:
+    - keep them as noisy social-text artifacts
+    - transliterate them
+    - drop them from training/evaluation subsets
+  - if additional xlsx-based datasets are processed next, reuse the same flow:
+    - export raw CSV
+    - create a cleaned `*_processed.csv`
+    - translate with `--resume-mode missing`
+
+### 2026-03-30 ai-api registry error sample CSV promotion gate
+
+- Completed API/change
+  - `GET /internal/admin/emotion-models/{id}/promotion-checklist`
+  - activate guard와 같은 checklist 계산에 `errorSampleCsvGate` 추가
+- Verification status
+  - `./gradlew.bat test --tests com.mindcompass.aiapi.registry.service.EmotionModelRegistryServiceTest`
+  - `./gradlew.bat test --tests com.mindcompass.aiapi.registry.controller.EmotionModelRegistryAdminControllerTest`
+  - `./gradlew.bat compileJava`
+  - live:
+    - `GET http://localhost:8001/health`
+    - `GET http://localhost:8001/internal/admin/emotion-models/1/promotion-checklist`
+    - `GET http://localhost:8001/internal/admin/emotion-models/2/promotion-checklist`
+- Current caution
+  - `manual_seed_v2`의 `happy_to_calm_errors_manual_seed_v2.csv`는 `reviewedRows=0`이다.
+  - `107 vs 124`는 단순 누락이 아니라 export 기준 차이다.
+    - `124` = candidate 전체 `HAPPY -> CALM`
+    - `107` = baseline 대비 새로 무너진 `HAPPY -> CALM`
+    - `17` = baseline에서도 이미 `CALM`이던 row
+  - 현재 recommendation은 계속 `SHADOW_ONLY`로 보는 것이 맞다.
+- Next recommended work
+  - `happy_to_calm_errors_manual_seed_v2.csv`의 `manual_relabel_reason` 정리부터 먼저 진행
+
+### 2026-03-30 manual relabel reason review kickoff
+
+- Completed change
+  - `docs/ai-api/EMOTION_MODEL_PROMOTION_CHECKLIST.md`에 `manual_relabel_reason` 1차 승인 코드와 보수적 리뷰 우선순위를 추가
+  - `happy_to_calm_errors_manual_seed_v2.csv`에서 저각성 `CALM` 근거가 문장에 직접 드러난 row `14`건에 `manual_relabel_reason` 선반영
+- 1차 승인 코드
+  - `RELABEL_TO_CALM_RELIEF_AND_REASSURANCE`
+  - `RELABEL_TO_CALM_STABILITY_AND_PEACE_OF_MIND`
+  - `RELABEL_TO_CALM_GRATITUDE_WITH_LOW_AROUSAL`
+  - `RELABEL_TO_CALM_RECOVERY_AND_SETTLING`
+- Verification status
+  - CSV total rows: `107`
+  - reviewed rows after this update: `14`
+  - remaining blank rows: `93`
+  - 이번 턴 선반영 대상은 `느긋`, 일부 `감사하는`, 일부 `만족스러운` 중에서도 `다행`, `여유`, `마음 편함`, `안식처`, `회복`이 직접 드러난 row만 선택
+- Current caution
+  - `errorSampleCsvGate`는 아직 fail 상태다. 전수 리뷰가 끝나기 전 recommendation은 계속 `SHADOW_ONLY`가 맞다.
+  - `신이 난`, `흥분`, 일부 `기쁨`, 일부 `자신하는`은 여전히 `HAPPY` 유지 가능성이 높아 2차 리뷰로 남겨두는 것이 안전하다.
+  - 이번 반영은 전수 완료가 아니라 1차 보수 승인 세트 확정이다.
+- Next recommended work
+  - 남은 `93`건은 우선 `KEEP_HAPPY`와 `RELABEL_TO_CALM`를 분리하는 2차 코드 체계를 정한 뒤 `신이 난`/`기쁨`/`자신하는` 순서로 이어서 리뷰
+
+### 2026-03-30 manual relabel reason review second pass
+
+- Completed change
+  - `docs/ai-api/EMOTION_MODEL_PROMOTION_CHECKLIST.md`에 `KEEP_HAPPY` 2차 코드 4개를 추가
+  - `happy_to_calm_errors_manual_seed_v2.csv`에서 고각성 `HAPPY` 유지 근거가 분명한 row `25`건에 `manual_relabel_reason` 추가 반영
+- 2차 유지 코드
+  - `KEEP_HAPPY_HIGH_AROUSAL_EXCITEMENT`
+  - `KEEP_HAPPY_ACTIVE_CELEBRATION_AND_REWARD`
+  - `KEEP_HAPPY_PROUD_RECOGNITION_AND_PRAISE`
+  - `KEEP_HAPPY_CONFIDENT_FORWARD_MOMENTUM`
+- Verification status
+  - CSV total rows: `107`
+  - reviewed rows after second pass: `39`
+  - remaining blank rows: `68`
+  - 주요 2차 반영 묶음
+    - `신이 난`: 강한 흥분, 파티, 즉시 소비/축하, 행동 충동
+    - `기쁨`: 보상, 선물, 승진, 결혼식 기대, 축하 이벤트
+    - `자신하는`: 칭찬, 자랑, 발표 자신감, 프로젝트 추진감
+- Current caution
+  - 여전히 일부 `기쁨`, 일부 `자신하는`, 건강 안도 계열, 관계 안정 계열은 `HAPPY`와 `CALM` 경계가 남아 있다.
+  - 이번 2차는 명백한 `KEEP_HAPPY`만 넣었고, 애매한 행은 비워 둔 상태다.
+- Next recommended work
+  - 남은 `68`건은 건강 안도/회복, 관계 안정, 감사-기쁨 혼합 문장을 중심으로 `RELABEL_TO_CALM` 후보와 `KEEP_HAPPY` 후보를 다시 분리
+
+### 2026-03-30 manual relabel reason review third pass
+
+- Completed change
+  - 건강 안도/검진/회복, 저각성 감사, 장기 안정 문장 `10`건에 `RELABEL_TO_CALM` 코드를 추가 반영
+  - 이번 패스는 `다행`, `건강검진`, `회복`, `입원 도움`, `해고 불안 해소`처럼 긴장 하강 근거가 직접 드러난 row만 선택
+- Verification status
+  - CSV total rows: `107`
+  - reviewed rows after third pass: `49`
+  - remaining blank rows: `58`
+  - 이번 패스 주요 코드
+    - `RELABEL_TO_CALM_RELIEF_AND_REASSURANCE`
+    - `RELABEL_TO_CALM_STABILITY_AND_PEACE_OF_MIND`
+    - `RELABEL_TO_CALM_GRATITUDE_WITH_LOW_AROUSAL`
+    - `RELABEL_TO_CALM_RECOVERY_AND_SETTLING`
+- Current caution
+  - 남은 행은 `감사 + 성취`, `관계 만족 + 기대`, `자신감 + 공격성`, `기쁨 + 행동 추진`이 섞여 있어 이전보다 더 경계 판단이 어렵다.
+  - 이번 패스에서도 애매한 row는 비워 두고, 근거가 직접 보이는 행만 추가했다.
+- Next recommended work
+  - 남은 `58`건은 `감사하는`과 `만족스러운`부터 다시 훑어 `저각성 감사/안정`과 `성취형 HAPPY`를 분리
+
+### 2026-03-30 manual relabel reason review fourth pass
+
+- Completed change
+  - `감사하는`과 `만족스러운` 잔여 row 중 보수적으로 판단 가능한 `12`건에 추가 코드 반영
+  - 저각성 감사/안정 문장은 `RELABEL_TO_CALM`, 보상/성취/행동 추진 문장은 `KEEP_HAPPY`로 분리
+- Verification status
+  - CSV total rows: `107`
+  - reviewed rows after fourth pass: `61`
+  - remaining blank rows: `46`
+  - 이번 패스 추가 경향
+    - `RELABEL_TO_CALM_GRATITUDE_WITH_LOW_AROUSAL`
+    - `RELABEL_TO_CALM_STABILITY_AND_PEACE_OF_MIND`
+    - `RELABEL_TO_CALM_RECOVERY_AND_SETTLING`
+    - `KEEP_HAPPY_ACTIVE_CELEBRATION_AND_REWARD`
+    - `KEEP_HAPPY_CONFIDENT_FORWARD_MOMENTUM`
+- Current caution
+  - 남은 row는 `기쁨`, `자신하는`, `신이 난`, `흥분`, 일부 `감사하는`이 혼합돼 있어 문장별 수동 판단 비중이 더 커졌다.
+  - 특히 관계 만족과 성취감이 동시에 있는 문장은 과잉 분류하지 않는 편이 안전하다.
+- Next recommended work
+  - 남은 `46`건은 `기쁨`과 `자신하는`부터 다시 정리하면서 `칭찬/성취/기대`는 `KEEP_HAPPY`, `안도/안정/편안함`은 `RELABEL_TO_CALM`로 좁혀 나가기
+
+### 2026-03-30 manual relabel reason review fifth pass
+
+- Completed change
+  - `기쁨`과 `자신하는` 잔여 row 중 성취/칭찬/새 출발/예상 불안 해소가 직접 드러난 `12`건을 추가 반영
+  - `학교폭력 가해자 퇴학`처럼 위협 해소가 핵심인 row는 `RELABEL_TO_CALM_RELIEF_AND_REASSURANCE`로 분리
+- Verification status
+  - CSV total rows: `107`
+  - reviewed rows after fifth pass: `73`
+  - remaining blank rows: `34`
+  - 이번 패스 추가 경향
+    - `KEEP_HAPPY_ACTIVE_CELEBRATION_AND_REWARD`
+    - `KEEP_HAPPY_PROUD_RECOGNITION_AND_PRAISE`
+    - `KEEP_HAPPY_CONFIDENT_FORWARD_MOMENTUM`
+    - `RELABEL_TO_CALM_RELIEF_AND_REASSURANCE`
+- Current caution
+  - 남은 row는 `신이 난`, `흥분`, 일부 `감사하는`, 일부 `느긋`이 더 많이 남아 있어 문맥 해석 비중이 커졌다.
+  - 공격성이나 대인 우위감이 섞인 `자신하는` 문장은 무리하게 라벨링하지 않고 계속 보류하는 편이 안전하다.
+- Next recommended work
+  - 남은 `34`건은 `신이 난`과 `흥분`을 먼저 보면서 축하/흥분형 `KEEP_HAPPY`와 건강 안도형 `RELABEL_TO_CALM`를 최종 분리
+
+### 2026-03-30 manual relabel reason review sixth pass
+
+- Completed change
+  - `신이 난`과 `흥분` 잔여 row 중 축하/만남/기대/행동 추진이 직접 드러난 `11`건을 추가 반영
+  - 이번 패스는 사실상 `KEEP_HAPPY` 마무리 단계로, 건강 안도형 `RELABEL_TO_CALM`은 새로 늘리지 않았다.
+- Verification status
+  - CSV total rows: `107`
+  - reviewed rows after sixth pass: `84`
+  - remaining blank rows: `23`
+  - 이번 패스 추가 경향
+    - `KEEP_HAPPY_ACTIVE_CELEBRATION_AND_REWARD`
+    - `KEEP_HAPPY_HIGH_AROUSAL_EXCITEMENT`
+    - `KEEP_HAPPY_PROUD_RECOGNITION_AND_PRAISE`
+- Current caution
+  - 남은 row는 `감사하는`, `느긋`, `기쁨`, `자신하는`, 일부 `만족스러운`이 섞여 있고 문장 결이 한층 더 미묘하다.
+  - 특히 관계 안정과 성취 기쁨이 함께 있는 문장은 과도한 코드 부여보다 보류가 더 안전할 수 있다.
+- Next recommended work
+  - 남은 `23`건은 `감사하는`과 `느긋`부터 다시 읽으면서 저각성 안정형 `RELABEL_TO_CALM` 후보를 최종 정리
+
+### 2026-03-30 manual relabel reason review seventh pass
+
+- Completed change
+  - `감사하는`, `느긋`, `만족스러운`, `자신하는`, `기쁨` 잔여 blank row `23`건을 문장 직접 근거 기준으로 모두 마무리 반영
+  - 감사/안도/안정/건강 회복은 `RELABEL_TO_CALM_*`, 칭찬/축하/인정/행동 추진은 `KEEP_HAPPY_*`로만 좁혀서 보수적으로 분류
+- Verification status
+  - CSV total rows: `107`
+  - reviewed rows after seventh pass: `107`
+  - remaining blank rows: `0`
+  - 이번 패스 추가 경향
+    - `RELABEL_TO_CALM_GRATITUDE_WITH_LOW_AROUSAL`
+    - `RELABEL_TO_CALM_RELIEF_AND_REASSURANCE`
+    - `RELABEL_TO_CALM_STABILITY_AND_PEACE_OF_MIND`
+    - `RELABEL_TO_CALM_RECOVERY_AND_SETTLING`
+    - `KEEP_HAPPY_ACTIVE_CELEBRATION_AND_REWARD`
+    - `KEEP_HAPPY_PROUD_RECOGNITION_AND_PRAISE`
+    - `KEEP_HAPPY_CONFIDENT_FORWARD_MOMENTUM`
+- Current blocker or caution
+  - CSV 수동 리뷰 공란은 정리됐지만 `promotion-checklist` admin API live 재조회는 아직 하지 않아 문서 상 recommendation 값은 이전 스냅샷 기준이다.
+  - 이번 reason 코드는 `manual_seed_v3` 후보를 좁히기 위한 boundary cleanup 메모이므로 곧바로 broad relabel 근거로 확장하면 안 된다.
+- Next recommended work
+  - `happy_to_calm_errors_manual_seed_v2.csv` 완료본 기준으로 `manual_seed_v3` 승인 후보를 좁히고 fixed compare gate를 다시 확인
+
+### 2026-03-30 manual_seed_v3 reviewed CALM candidate narrowing and fixed compare pre-check
+
+- Completed change
+  - 완료된 `happy_to_calm_errors_manual_seed_v2.csv`에서 `RELABEL_TO_CALM_*`로 끝난 row만 추려 새 승인 후보 seed를 분리
+    - `ai-api-fastapi/training/emotion_classifier/processed/manual_relabel_candidates/manual_relabel_seed_v3_happy_to_calm_reviewed.csv`
+  - 기존 `manual_seed_v2` 라벨셋 위에 이 후보를 얹은 reviewed v3 유효셋과 frozen fixed compare 유효셋을 재생성
+    - `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v3_happy_to_calm_reviewed.csv`
+    - `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v3_happy_to_calm_reviewed_fixed_compare_medium.csv`
+  - 같은 reviewed fixed compare 정답셋으로 baseline active5 모델과 `manual_seed_v2` 모델을 다시 채점
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_relabel_weighted_on_manual_seed_v3_happy_to_calm_reviewed_fixed_compare.json`
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_on_manual_seed_v3_happy_to_calm_reviewed_fixed_compare.json`
+- Verification status
+  - reviewed CALM candidate seed count: `46`
+    - `RELABEL_TO_CALM_GRATITUDE_WITH_LOW_AROUSAL = 15`
+    - `RELABEL_TO_CALM_RELIEF_AND_REASSURANCE = 12`
+    - `RELABEL_TO_CALM_STABILITY_AND_PEACE_OF_MIND = 14`
+    - `RELABEL_TO_CALM_RECOVERY_AND_SETTLING = 5`
+  - seed apply changed count
+    - train `0`
+    - valid `46`
+  - fixed compare subset rebuild
+    - row count `750`
+    - changed count `46`
+  - reviewed fixed compare label distribution
+    - `HAPPY 104`
+    - `CALM 196`
+    - `ANXIOUS 156`
+    - `SAD 152`
+    - `ANGRY 142`
+  - baseline active5 on reviewed fixed compare
+    - accuracy `0.3760`
+    - macro F1 `0.3303`
+    - `HAPPY F1 = 0.4606`
+    - `CALM F1 = 0.4068`
+    - `HAPPY -> CALM = 23/104`
+    - `CALM -> HAPPY = 133/196`
+    - `happy_calm_macro_f1 = 0.4505`
+  - `manual_seed_v2` model on reviewed fixed compare
+    - accuracy `0.4680`
+    - macro F1 `0.3882`
+    - `HAPPY F1 = 0.2590`
+    - `CALM F1 = 0.7633`
+    - `HAPPY -> CALM = 78/104`
+    - `CALM -> HAPPY = 12/196`
+    - `happy_calm_macro_f1 = 0.5295`
+  - java verification
+    - `.\gradlew.bat test --tests com.mindcompass.aiapi.registry.service.EmotionModelRegistryServiceTest`
+    - `.\gradlew.bat compileJava`
+- Interpretation
+  - 이번 reviewed v3 후보는 `HAPPY` support를 `150 -> 104`, `CALM` support를 `150 -> 196`으로 바꿀 만큼 강한 label-side 이동이다.
+  - 같은 reviewed 정답셋에서 봐도 baseline은 `HAPPY -> CALM`이 여전히 낮지만 `CALM -> HAPPY`가 크게 무너지고, `manual_seed_v2`는 반대로 `CALM` 쏠림이 강해 `HAPPY F1`이 여전히 낮다.
+  - 즉 완료본 리뷰를 그대로 승인 후보로 쓰면 현재 실패 모드가 해소된다기보다 평가 기준 자체가 크게 이동하며 양방향 경계 문제가 계속 남는다.
+  - 이 결과는 새 reviewed 후보에 대한 label-side pre-check이며, reviewed v3로 재학습한 새 모델 gate 결과는 아직 아니다.
+- Current blocker or caution
+  - train 쪽 approved sample_id가 없어 이번 reviewed v3는 사실상 valid/fixed-compare 재라벨 pre-check에 가깝다.
+  - reviewed fixed compare에서도 `manual_seed_v2`의 `HAPPY F1` 저하와 boundary bias가 남아 있어 이 후보를 바로 `manual_seed_v3` 승격 seed로 확정하기엔 보수성이 부족하다.
+- Next recommended work
+  - `RELABEL_TO_CALM_*` 46건 전체를 바로 seed로 쓰지 말고 `CALM -> HAPPY`까지 함께 악화시키지 않는 더 좁은 subset부터 다시 검토
+
+### 2026-03-30 manual_seed_v3 reviewed CALM narrow15 pre-check
+
+- Completed change
+  - reviewed CALM 후보 `46`건 중에서도 건강 회복, 위험 해소, 안도 근거가 직접적인 row `15`건만 남긴 더 좁은 subset seed를 분리
+    - `ai-api-fastapi/training/emotion_classifier/processed/manual_relabel_candidates/manual_relabel_seed_v3_happy_to_calm_reviewed_narrow15.csv`
+  - 같은 방식으로 narrow15 유효셋과 frozen fixed compare 유효셋을 재생성
+    - `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v3_happy_to_calm_reviewed_narrow15.csv`
+    - `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v3_happy_to_calm_reviewed_narrow15_fixed_compare_medium.csv`
+  - baseline active5 모델과 `manual_seed_v2` 모델을 narrow15 reviewed fixed compare 정답셋에서 다시 채점
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_relabel_weighted_on_manual_seed_v3_happy_to_calm_reviewed_narrow15_fixed_compare.json`
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_on_manual_seed_v3_happy_to_calm_reviewed_narrow15_fixed_compare.json`
+- Verification status
+  - narrow15 candidate count: `15`
+  - fixed compare label distribution
+    - `HAPPY 135`
+    - `CALM 165`
+    - `ANXIOUS 156`
+    - `SAD 152`
+    - `ANGRY 142`
+  - baseline active5 on narrow15 reviewed fixed compare
+    - accuracy `0.4013`
+    - macro F1 `0.3513`
+    - `HAPPY F1 = 0.5632`
+    - `CALM F1 = 0.4091`
+    - `HAPPY -> CALM = 29/135`
+    - `CALM -> HAPPY = 108/165`
+    - `happy_calm_macro_f1 = 0.5051`
+  - `manual_seed_v2` model on narrow15 reviewed fixed compare
+    - accuracy `0.4267`
+    - macro F1 `0.3612`
+    - `HAPPY F1 = 0.2118`
+    - `CALM F1 = 0.6758`
+    - `HAPPY -> CALM = 109/135`
+    - `CALM -> HAPPY = 12/165`
+    - `happy_calm_macro_f1 = 0.4598`
+- Interpretation
+  - narrow15는 46건 전체 reviewed 후보보다 평가 기준 이동 폭을 줄였고, baseline metrics도 기존 fixed compare baseline에 더 가까워졌다.
+  - 그럼에도 `manual_seed_v2`는 narrow15 기준에서도 `HAPPY -> CALM`이 `109/135`로 여전히 매우 높아, 현재 label-side 방향만으로는 boundary 붕괴를 설명하거나 해소하기 어렵다.
+  - 따라서 narrow15는 "가장 안전한 CALM 후보 묶음"에 가까운 참고 subset이지, 바로 `manual_seed_v3` 승격 seed로 확정할 단계는 아니다.
+- Current blocker or caution
+  - 지금까지의 결과는 모두 reviewed label pre-check이며, narrow15 seed로 재학습한 새 모델 gate 결과는 아직 없다.
+  - 하지만 pre-check만으로도 `manual_seed_v2`가 reviewed ground truth에 맞춰 자연스럽게 좋아지지 않아, 다음 투자는 broad relabel 확장보다 모델-side mitigation이 더 합리적이다.
+- Next recommended work
+  - narrow15를 최종 보수 subset reference로 남기고, 새 학습은 label-side 확대 대신 model-side boundary mitigation에서 다시 시작
+
+### 2026-03-30 human-and-llm full translation status re-check
+
+- Completed work
+  - re-checked the actual outputs in:
+    - `C:\Users\wonbin\OneDrive\바탕 화면\mindcompass project\csv파일들\human-and-llm-mental-health-conversations`
+  - verified the current full-output candidate:
+    - `C:\Users\wonbin\OneDrive\바탕 화면\mindcompass project\csv파일들\human-and-llm-mental-health-conversations\dataset_ko.csv`
+  - attempted to resume the remaining translation with:
+    - input `dataset.csv`
+    - output `dataset_ko.csv`
+    - text columns `Context,Response,LLM`
+    - mode `--resume-mode missing`
+- Verification status
+  - source row count:
+    - `3507`
+  - current translated file status:
+    - `Context_ko=951/3507`
+    - `Response_ko=950/3507`
+    - `LLM_ko=937/3507`
+  - current missing status:
+    - `Context_missing=2556`
+    - `Response_missing=2557`
+    - `LLM_missing=2570`
+  - first rows in `dataset_ko.csv` still show blank translated columns in many records, so this is not yet a completed production output
+- Current blocker or caution
+  - the resume run stopped immediately with `401 invalid_api_key`
+  - the current shell `OPENAI_API_KEY` is present but invalid for the OpenAI request made by `scripts/translate_mental_health_csv.py`
+  - because of that, no safe automatic continuation was possible in this session
+- Next recommended work
+  - set a valid `OPENAI_API_KEY`
+  - rerun the existing resume command against `dataset_ko.csv`
+  - verify all three translated columns reach `3507/3507`
+
+### 2026-03-30 human-and-llm full translation continued run
+
+- Completed work
+  - resumed `human-and-llm-mental-health-conversations/dataset_ko.csv` translation multiple times with a valid API key
+  - continued using:
+    - input: `C:\Users\wonbin\OneDrive\바탕 화면\mindcompass project\csv파일들\human-and-llm-mental-health-conversations\dataset.csv`
+    - output: `C:\Users\wonbin\OneDrive\바탕 화면\mindcompass project\csv파일들\human-and-llm-mental-health-conversations\dataset_ko.csv`
+    - text columns: `Context,Response,LLM`
+  - during an unsafe same-file retry, `dataset_ko.csv` briefly entered a damaged write state, so a safety backup was saved to:
+    - `C:\Users\wonbin\OneDrive\바탕 화면\mindcompass project\csv파일들\human-and-llm-mental-health-conversations\dataset_ko_corrupted_backup.csv`
+  - rebuilt `dataset_ko.csv` back onto the exact `3507` source-row structure before continuing
+- Verification status
+  - current row count:
+    - `3507`
+  - current translated counts:
+    - `Context_ko=2132/3507`
+    - `Response_ko=2132/3507`
+    - `LLM_ko=2121/3507`
+  - current remaining rows with at least one blank translated field:
+    - `1386`
+- Current blocker or caution
+  - the translation is still in progress and not yet complete
+  - long-running desktop commands are hitting app timeout before the full dataset finishes in one pass
+  - do not use `dataset_ko.csv` as both `--input` and `--output` again; keep `dataset.csv` as input and `dataset_ko.csv` as output
+- Next recommended work
+  - continue the same resume command with `--resume-mode missing`
+  - verify final completion at:
+    - `Context_ko=3507/3507`
+    - `Response_ko=3507/3507`
+    - `LLM_ko=3507/3507`
+
+### 2026-03-30 human-and-llm full translation continued run 2
+
+- Completed work
+  - continued the same safe resume flow:
+    - input `dataset.csv`
+    - output `dataset_ko.csv`
+    - columns `Context,Response,LLM`
+    - mode `--resume-mode missing`
+  - after each desktop timeout, rewrote `dataset_ko.csv` into a clean UTF-8 CSV so the next run could resume safely
+- Verification status
+  - current row count remains stable:
+    - `3507`
+  - latest translated counts:
+    - `Context_ko=3012/3507`
+    - `Response_ko=3011/3507`
+    - `LLM_ko=2986/3507`
+  - latest remaining rows with at least one blank translated field:
+    - `522`
+- Current blocker or caution
+  - this task is now mostly a long-running translation job rather than a design/debug issue
+  - the main friction is desktop command timeout, not API logic
+  - after a timeout, validate and normalize the CSV before the next resume run
+- Next recommended work
+  - continue the same resume command until all three translated columns reach `3507/3507`
+### 2026-03-29 ai-api registry activate guard
+
+- Completed API
+  - `POST /internal/admin/emotion-models/{id}/activate`
+- Completed change
+  - activate 전에 promotion checklist를 자동으로 다시 계산하도록 service guard 추가
+  - `APPROVED` 상태만으로는 부족하고 checklist recommendation이 `ACTIVE_CANDIDATE`일 때만 실제 activation 허용
+  - recommendation이 `SHADOW_ONLY` 또는 `BLOCKED`이면 `400 Bad Request`로 차단하고 실패 gate 이름을 reason에 포함
+- Verification status
+  - service test 추가
+    - approved지만 `SHADOW_ONLY` candidate는 activate 차단
+    - approved이고 checklist gate를 모두 통과한 candidate는 activate 성공
+  - compile / test / live verification은 이번 작업에서 함께 수행 예정
+- Current blocker or caution
+  - baseline이 전혀 없는 초기 bootstrap 환경에서는 현재 checklist 규칙상 별도 bootstrapping 판단이 필요할 수 있다.
+  - 이번 변경은 이미 active baseline이 존재하는 현재 운영 흐름을 우선 안전하게 막는 범위에 집중했다.
+- Next recommended work
+  - FastAPI serving runtime의 실제 `EMOTION_MODEL_DIR`와 active registry artifact path 정합성 점검 API 추가
+### 2026-03-29 KcELECTRA fixed compare label smoothing lr15e-5 follow-up
+
+- Completed change
+  - continued only from the `label_smoothing` branch and kept all fixed constraints unchanged:
+    - baseline not changed: `cpu_compare_medium_relabel_weighted`
+    - serving policy unchanged: `TIRED fallback-only`
+    - no broad text rule
+    - no broad relabel by `emotion_major`
+    - only frozen fixed compare CSVs used
+  - resumed training from the interrupted checkpoint:
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_lr15e5_v1`
+    - resumed from: `checkpoint-156`
+    - config: `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_lr15e5_v1.json`
+  - generated fixed compare evaluation json:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_lr15e5_v1.json`
+  - updated fixed compare summary:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Design decision
+  - this session used the existing `label_smoothing = 0.05` branch as the only base branch
+  - only one knob changed from the previous label smoothing candidate:
+    - `learning_rate: 2e-5 -> 1.5e-5`
+  - frozen compare gate remained the first decision point before any registry or serving discussion
+- Verification status
+  - training resumed successfully from saved checkpoint instead of restarting
+  - final train log at epoch `2.0`:
+    - `eval_accuracy = 0.3547`
+    - `eval_macro_f1 = 0.2090`
+    - `eval_happy_calm_macro_f1 = 0.3250`
+    - `eval_happy_to_calm_count = 0`
+    - `eval_calm_to_happy_count = 147`
+  - post-train fixed compare evaluation:
+    - accuracy `0.3280`
+    - macro F1 `0.2085`
+    - happy_calm_macro_f1 `0.3757`
+    - `HAPPY -> CALM = 7/150`
+    - `CALM -> HAPPY = 137/150`
+- Baseline comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - macro F1 `0.3648`
+    - happy_calm_macro_f1 `0.4868`
+    - `HAPPY -> CALM = 21/150`
+    - `CALM -> HAPPY = 113/150`
+  - previous label smoothing branch `...label_smoothing_v1`
+    - macro F1 `0.2411`
+    - happy_calm_macro_f1 `0.3936`
+    - `HAPPY -> CALM = 7/150`
+    - `CALM -> HAPPY = 115/150`
+  - new lr `1.5e-5` result
+    - macro F1 worsened to `0.2085`
+    - happy_calm_macro_f1 worsened to `0.3757`
+    - `HAPPY -> CALM` stayed at `7/150`
+    - `CALM -> HAPPY` worsened to `137/150`
+- Interpretation
+  - lowering the learning rate from `2e-5` to `1.5e-5` did not improve the frozen fixed compare gate
+  - the run preserved the reduced `HAPPY -> CALM` error, but the reverse collapse became much worse than both baseline and the prior label smoothing run
+  - by the agreed rule, this is a failure because `CALM -> HAPPY` reverse collapse remains severe and overall gate metrics are below baseline
+  - do not promote this experiment to baseline, registry, or serving
+- Current blocker or caution
+  - `metric_for_best_model = eval_happy_calm_macro_f1` alone is not sufficient to stop reverse collapse on `CALM -> HAPPY`
+  - future model-side mitigation must keep fixed compare gating first and explicitly watch both directions together
+- Next recommended work
+  - if continuing model-side mitigation, stay on the `label_smoothing` branch only
+  - change only one knob at a time on the same frozen compare CSVs
+  - the next safer candidate is `1.0e-5` because `1.5e-5` already worsened both `macro_f1` and `CALM -> HAPPY`
+### 2026-03-29 KcELECTRA fixed compare label smoothing lr10e-5 follow-up
+
+- Completed change
+  - added a second smaller learning-rate branch without changing any data or serving assumptions:
+    - config:
+      - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_lr10e5_v1.json`
+    - artifact dir:
+      - `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_lr10e5_v1`
+    - evaluation json:
+      - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_lr10e5_v1.json`
+  - kept all frozen constraints unchanged:
+    - train csv = `train_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+    - valid csv = `valid_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+    - `label_smoothing = 0.05`
+    - no broad relabel
+    - baseline unchanged
+    - serving unchanged
+    - `TIRED` remains fallback-only
+  - updated fixed compare comparison table:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Design decision
+  - only one knob changed from the previous label smoothing candidate:
+    - `learning_rate: 2e-5 -> 1.0e-5`
+  - this was intentionally smaller than the `1.5e-5` branch to test whether a more conservative update step could reduce reverse collapse without reopening broad relabel work
+- Verification status
+  - training completed to epoch `2.0`
+  - trainer eval at the final epoch:
+    - `eval_accuracy = 0.2507`
+    - `eval_macro_f1 = 0.1502`
+    - `eval_happy_calm_macro_f1 = 0.2018`
+    - `eval_happy_to_calm_count = 2`
+    - `eval_calm_to_happy_count = 32`
+  - post-train fixed compare evaluation:
+    - accuracy `0.2507`
+    - macro F1 `0.1502`
+    - `HAPPY F1 = 0.3983`
+    - `CALM F1 = 0.0000`
+    - `happy_calm_macro_f1 = 0.2018`
+    - `HAPPY -> CALM = 2/150`
+    - `CALM -> HAPPY = 32/150`
+- Baseline comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - accuracy `0.4267`
+    - macro F1 `0.3648`
+    - `HAPPY F1 = 0.6146`
+    - `CALM F1 = 0.2941`
+    - `HAPPY -> CALM = 21/150`
+    - `CALM -> HAPPY = 113/150`
+  - previous label smoothing branch `...label_smoothing_v1`
+    - accuracy `0.3613`
+    - macro F1 `0.2411`
+    - `HAPPY F1 = 0.6030`
+    - `CALM F1 = 0.1600`
+    - `HAPPY -> CALM = 7/150`
+    - `CALM -> HAPPY = 115/150`
+  - new lr `1.5e-5` branch
+    - accuracy `0.3280`
+    - macro F1 `0.2085`
+    - `HAPPY F1 = 0.4866`
+    - `CALM F1 = 0.0914`
+    - `HAPPY -> CALM = 7/150`
+    - `CALM -> HAPPY = 137/150`
+### 2026-03-29 ai-api registry active runtime alignment API
+
+- Completed API
+  - FastAPI
+    - `GET /internal/model/runtime-info`
+  - ai-api
+    - `GET /internal/admin/emotion-models/active/runtime-alignment`
+- Completed change
+  - FastAPI serving runtime이 실제로 보고 있는 `EMOTION_MODEL_DIR`, resolved absolute path, label map path, model load source를 read-only로 노출
+  - ai-api registry/admin에서 active row `artifactDir`와 FastAPI runtime `modelDirResolved`를 비교하는 정합성 점검 API 추가
+  - `AI_FASTAPI_BASE_URL` 설정으로 ai-api가 FastAPI runtime 정보를 읽도록 연결
+- Verification status
+  - FastAPI python 문법 검증
+    - `py_compile` success for:
+      - `app/schemas/runtime_info.py`
+      - `app/inference/predictor.py`
+      - `app/services/emotion_classifier_service.py`
+      - `app/routers/model_router.py`
+  - ai-api test success
+    - `.\gradlew.bat test --tests com.mindcompass.aiapi.registry.service.EmotionModelRegistryServiceTest --tests com.mindcompass.aiapi.registry.controller.EmotionModelRegistryAdminControllerTest`
+  - ai-api compile success
+    - `.\gradlew.bat compileJava`
+  - live verification은 이번 작업에서 함께 수행 예정
+- Current blocker or caution
+  - 현재 `overallAligned`는 `artifactDirAligned && runtimeModelDirExists` 중심의 작은 범위 체크다.
+  - label metadata contract, label map contract, 실제 로드된 모델 head까지는 아직 이 API 범위에 넣지 않았다.
+- Next recommended work
+  - error sample CSV 기반 추가 promotion gate 설계
+### 2026-03-29 KcELECTRA fixed compare label smoothing lr10e-5 follow-up
+
+- Completed change
+  - continued only from the `label_smoothing` branch and kept all fixed constraints unchanged:
+    - baseline not changed: `cpu_compare_medium_relabel_weighted`
+    - serving policy unchanged: `TIRED fallback-only`
+    - no broad text rule
+    - no broad relabel by `emotion_major`
+    - only frozen fixed compare CSVs used
+  - resumed training from the interrupted checkpoint:
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_lr10e5_v1`
+    - resumed from: `checkpoint-156`
+    - config: `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_lr10e5_v1.json`
+  - generated fixed compare evaluation json:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_lr10e5_v1.json`
+  - updated fixed compare summary:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Design decision
+  - this session stayed on the same `label_smoothing = 0.05` branch
+  - only one knob changed from the previous run:
+    - `learning_rate: 1.5e-5 -> 1.0e-5`
+  - fixed compare validation remained the first gate
+- Verification status
+  - training resumed successfully from saved checkpoint
+  - final train log at epoch `2.0`:
+    - `eval_accuracy = 0.2773`
+    - `eval_macro_f1 = 0.1684`
+    - `eval_happy_calm_macro_f1 = 0.2400`
+    - `eval_happy_to_calm_count = 0`
+    - `eval_calm_to_happy_count = 59`
+  - post-train fixed compare evaluation:
+    - accuracy `0.2773`
+    - macro F1 `0.1684`
+    - happy_calm_macro_f1 `0.2400`
+    - `HAPPY -> CALM = 0/150`
+    - `CALM -> HAPPY = 59/150`
+- Baseline comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - macro F1 `0.3648`
+    - happy_calm_macro_f1 `0.4868`
+    - `HAPPY -> CALM = 21/150`
+    - `CALM -> HAPPY = 113/150`
+  - previous label smoothing branch `...label_smoothing_v1`
+    - macro F1 `0.2411`
+    - happy_calm_macro_f1 `0.3936`
+    - `HAPPY -> CALM = 7/150`
+    - `CALM -> HAPPY = 115/150`
+  - new lr `1.0e-5` result
+    - macro F1 worsened further to `0.1684`
+    - happy_calm_macro_f1 worsened further to `0.2400`
+    - `HAPPY -> CALM` improved to `0/150`
+    - `CALM -> HAPPY` improved to `59/150`
+- Interpretation
+  - lowering the learning rate to `1.0e-5` reduced both directional HAPPY/CALM confusion counts
+  - however, the model collapsed overall class discrimination and effectively lost `CALM`, `ANXIOUS`, and `SAD` recall
+  - by the agreed rule, this is still a failure because fixed compare gate is not actually better than baseline on the required overall metrics
+  - do not promote this experiment to baseline, registry, or serving
+- Current blocker or caution
+  - simply lowering learning rate inside the current label smoothing branch trades boundary correction for overall class collapse
+  - `happy_to_calm_count` alone is not a safe promotion signal without `macro_f1` and `happy_calm_macro_f1`
+- Next recommended work
+  - stop further simple learning-rate-only descent below `1.5e-5` on this branch
+  - if model-side mitigation continues, the next change should be a different single knob, not another lower LR
+  - keep the same frozen fixed compare CSVs and the same baseline gate rules
+### 2026-03-30 KcELECTRA fixed compare label smoothing weight decay 0.0 follow-up
+
+- Completed change
+  - rechecked the current fixed compare baseline and summary before running a new trial:
+    - baseline remained `cpu_compare_medium_relabel_weighted`
+    - fixed compare summary remained `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+  - added one new config on the same `label_smoothing` branch:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_wd0_v1.json`
+  - trained one single-knob variant without changing data, serving, or compare inputs:
+    - only changed knob: `weight_decay: 0.01 -> 0.0`
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_wd0_v1`
+  - generated fixed compare evaluation json:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_wd0_v1.json`
+  - updated fixed compare summary:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Design decision
+  - stayed on the `label_smoothing = 0.05` branch as requested
+  - did not touch:
+    - baseline `cpu_compare_medium_relabel_weighted`
+    - `TIRED fallback-only` serving policy
+    - broad text rule
+    - broad `emotion_major` relabel
+    - frozen fixed compare CSV
+  - chose `weight_decay` as the next single knob because repeated learning-rate descent already caused broad metric collapse
+- Verification status
+  - train-time eval at epoch `2.0`
+    - `eval_accuracy = 0.3760`
+    - `eval_macro_f1 = 0.2409`
+    - `eval_happy_calm_macro_f1 = 0.3356`
+    - `eval_happy_to_calm_count = 145`
+    - `eval_calm_to_happy_count = 0`
+  - post-train fixed compare evaluation
+    - accuracy `0.4967`
+    - macro F1 `0.1678`
+    - `HAPPY F1 = 0.0000`
+    - `CALM F1 = 0.6712`
+    - `happy_calm_macro_f1 = 0.3356`
+    - `HAPPY -> CALM = 145/150`
+    - `CALM -> HAPPY = 0/150`
+- Baseline comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - macro F1 `0.3648`
+    - happy_calm_macro_f1 `0.4868`
+    - `HAPPY -> CALM = 21/150`
+    - `CALM -> HAPPY = 113/150`
+  - previous label smoothing branch `...label_smoothing_v1`
+    - macro F1 `0.2411`
+    - happy_calm_macro_f1 `0.3936`
+    - `HAPPY -> CALM = 7/150`
+    - `CALM -> HAPPY = 115/150`
+  - new `weight_decay = 0.0` result
+    - macro F1 worsened to `0.1678`
+    - happy_calm_macro_f1 worsened to `0.3356`
+    - `HAPPY -> CALM` collapsed to `145/150`
+    - `CALM -> HAPPY` improved to `0/150`
+- Interpretation
+  - removing weight decay flipped the previous failure mode rather than solving it
+  - the model over-corrected toward `CALM`, effectively losing `HAPPY` recall on the frozen compare gate
+  - by the agreed rule this is a clear failure because one direction improved only by causing the opposite directional collapse, while both `macro_f1` and `happy_calm_macro_f1` stayed far below baseline
+  - do not promote this experiment to baseline, registry, or serving
+- Current blocker or caution
+  - inside the current `label_smoothing` branch, simply weakening regularization can trade `CALM -> HAPPY` collapse for `HAPPY -> CALM` collapse
+  - directional counts must continue to be judged together with `macro_f1` and `happy_calm_macro_f1`
+- Next recommended work
+  - keep frozen fixed compare CSV and baseline gate unchanged
+  - if continuing, choose a different single knob that is not another learning-rate descent and not a broad relabel expansion
+  - start from the new config / artifact pair only as a failed reference, not as a promotion candidate
+### 2026-03-30 KcELECTRA fixed compare hidden dropout 0.2 label smoothing follow-up
+
+- Completed change
+  - rechecked the latest fixed compare baseline and summary before the new trial:
+    - baseline remained `cpu_compare_medium_relabel_weighted`
+    - fixed compare summary remained `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+  - added one new config on the same `label_smoothing` branch:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_v1.json`
+  - trained one single-knob variant without changing frozen inputs or serving assumptions:
+    - only changed knob: `hidden_dropout_prob: 0.3 -> 0.2`
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_v1`
+  - generated fixed compare evaluation json:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_v1.json`
+  - updated fixed compare summary:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Design decision
+  - stayed on the same `label_smoothing = 0.05` branch
+  - kept unchanged:
+    - baseline `cpu_compare_medium_relabel_weighted`
+    - `TIRED fallback-only` serving policy
+    - no broad text rule
+    - no broad relabel by `emotion_major`
+    - same frozen fixed compare CSV
+  - chose a mild dropout adjustment because the prior metric-only and regularization-only changes either preserved reverse collapse or flipped it into the opposite collapse
+- Verification status
+  - train-time eval at epoch `2.0`
+    - `eval_accuracy = 0.4400`
+    - `eval_macro_f1 = 0.3700`
+    - `eval_happy_calm_macro_f1 = 0.6111`
+    - `eval_happy_to_calm_count = 49`
+    - `eval_calm_to_happy_count = 60`
+  - post-train fixed compare evaluation
+    - accuracy `0.6000`
+    - macro F1 `0.3056`
+    - `HAPPY F1 = 0.6139`
+    - `CALM F1 = 0.6084`
+    - `happy_calm_macro_f1 = 0.6111`
+    - `HAPPY -> CALM = 49/150`
+    - `CALM -> HAPPY = 60/150`
+- Baseline comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - macro F1 `0.3648`
+    - happy_calm_macro_f1 `0.4868`
+    - `HAPPY -> CALM = 21/150`
+    - `CALM -> HAPPY = 113/150`
+  - previous label smoothing branch `...label_smoothing_v1`
+    - macro F1 `0.2411`
+    - happy_calm_macro_f1 `0.3936`
+    - `HAPPY -> CALM = 7/150`
+    - `CALM -> HAPPY = 115/150`
+  - new `hidden_dropout_prob = 0.2` result
+    - macro F1 improved versus the other recent label-smoothing variants to `0.3056`, but still stayed below baseline
+    - happy_calm_macro_f1 improved strongly to `0.6111`
+    - `HAPPY -> CALM` worsened to `49/150`
+    - `CALM -> HAPPY` improved to `60/150`
+- Interpretation
+  - lowering hidden dropout helped recover a more balanced HAPPY/CALM boundary than the recent failed runs
+  - however, the frozen fixed compare gate is still not better than baseline because `macro_f1` remains lower and `HAPPY -> CALM` is substantially worse than baseline
+  - by the agreed rule this is still a failure and must not be promoted to baseline, registry, or serving
+- Current blocker or caution
+  - a better HAPPY/CALM balance alone is still insufficient if it comes with materially worse `HAPPY -> CALM`
+  - current label smoothing branch seems capable of trading one boundary direction for another, but has not yet found a point that beats baseline on the full gate set
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - treat this run as the strongest recent failed reference on the current branch, not as a promotion candidate
+  - if continuing, choose another single knob that specifically tries to pull `HAPPY -> CALM` back down without reopening reverse `CALM -> HAPPY` collapse
+### 2026-03-30 KcELECTRA fixed compare balanced guard metric label smoothing follow-up
+
+- Completed change
+  - kept the same fixed constraints before adding a new trial:
+    - baseline remained `cpu_compare_medium_relabel_weighted`
+    - serving policy remained `TIRED fallback-only`
+    - no broad relabel by `emotion_major`
+    - no broad HAPPY -> CALM relabel expansion
+    - frozen fixed compare CSVs remained unchanged
+  - added one new config on the same `label_smoothing = 0.05` branch:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_balanced_guard_metric_label_smoothing_v1.json`
+  - added balanced guard metric support in:
+    - `ai-api-fastapi/training/emotion_classifier/scripts/train_emotion_classifier.py`
+    - `ai-api-fastapi/training/emotion_classifier/scripts/evaluate_emotion_classifier.py`
+  - trained one single-knob variant with the new checkpoint selection rule:
+    - only changed knob: `metric_for_best_model: eval_happy_calm_macro_f1 -> eval_happy_calm_balanced_guard_score`
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_balanced_guard_metric_label_smoothing_v1`
+  - generated fixed compare evaluation json:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_balanced_guard_metric_label_smoothing_v1.json`
+  - updated fixed compare summary:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Design decision
+  - stayed on the same `label_smoothing_v1` branch as requested
+  - kept `learning_rate = 2e-5` unchanged
+  - introduced a balanced guard score so checkpoint selection would penalize both directions together instead of watching `eval_happy_calm_macro_f1` alone
+  - balanced guard score definition:
+    - `happy_guard_score = 1 - happy_to_calm_rate`
+    - `calm_guard_score = 1 - calm_to_happy_rate`
+    - `balanced_guard_score = average(happy_guard_score, calm_guard_score)`
+    - `happy_calm_balanced_guard_score = harmonic_mean(happy_calm_macro_f1, balanced_guard_score)`
+- Verification status
+  - syntax check success
+    - `python -m py_compile ...train_emotion_classifier.py ...evaluate_emotion_classifier.py`
+  - train-time eval at epoch `1.0` selected as best checkpoint by the new metric
+    - `eval_accuracy = 0.2413`
+    - `eval_macro_f1 = 0.1311`
+    - `eval_happy_calm_macro_f1 = 0.3288`
+    - `eval_happy_to_calm_count = 0`
+    - `eval_calm_to_happy_count = 144`
+    - `eval_happy_calm_balanced_guard_score = 0.4028`
+  - train-time eval at epoch `2.0`
+    - `eval_accuracy = 0.3293`
+    - `eval_macro_f1 = 0.1948`
+    - `eval_happy_calm_macro_f1 = 0.3258`
+    - `eval_happy_to_calm_count = 1`
+    - `eval_calm_to_happy_count = 150`
+    - `eval_happy_calm_balanced_guard_score = 0.3935`
+  - post-train fixed compare evaluation
+    - accuracy `0.2413`
+    - macro F1 `0.1311`
+    - `HAPPY F1 = 0.3605`
+    - `CALM F1 = 0.0000`
+    - `happy_calm_macro_f1 = 0.3288`
+    - `happy_calm_balanced_guard_score = 0.4028`
+    - `HAPPY -> CALM = 0/150`
+    - `CALM -> HAPPY = 144/150`
+- Baseline comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - macro F1 `0.3648`
+    - happy_calm_macro_f1 `0.4868`
+    - `HAPPY -> CALM = 21/150`
+    - `CALM -> HAPPY = 113/150`
+  - previous label smoothing branch `...label_smoothing_v1`
+    - macro F1 `0.2411`
+    - happy_calm_macro_f1 `0.3936`
+    - `HAPPY -> CALM = 7/150`
+    - `CALM -> HAPPY = 115/150`
+  - new balanced guard metric result
+    - macro F1 worsened to `0.1311`
+    - happy_calm_macro_f1 worsened to `0.3288`
+    - `HAPPY -> CALM` improved to `0/150`
+    - `CALM -> HAPPY` worsened to `144/150`
+- Interpretation
+  - changing the checkpoint selection rule alone did not fix the reverse collapse
+  - the new metric still preferred a checkpoint that nearly eliminated `HAPPY -> CALM`, but it did so by sacrificing `CALM` recall almost completely
+  - by the agreed rule this is a failure because the fixed compare gate remains materially below baseline and the reverse directional error is worse than the existing label smoothing branch
+  - do not promote this experiment to baseline, registry, or serving
+- Current blocker or caution
+  - even a balanced directional guard score can still over-favor one boundary outcome when overall class separation is weak
+  - future model-side work should continue to check directional counts together with `macro_f1`, and should avoid treating guard-only checkpoint metrics as sufficient promotion evidence
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - treat this experiment as a failed reference only
+  - if continuing from `label_smoothing_v1`, prefer a different small model-side knob such as a mild dropout adjustment rather than another metric-only or learning-rate-only change
+### 2026-03-30 KcELECTRA fixed compare hidden dropout 0.2 follow-up
+
+- Completed change
+  - kept the same fixed constraints before the next run:
+    - baseline remained `cpu_compare_medium_relabel_weighted`
+    - serving policy remained `TIRED fallback-only`
+    - no broad relabel by `emotion_major`
+    - no broad HAPPY -> CALM relabel expansion
+    - frozen fixed compare CSVs remained unchanged
+  - added one new config on the same `label_smoothing = 0.05` branch:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_v1.json`
+  - trained one single-knob variant without changing LR, metric rule, or data:
+    - only changed knob: `hidden_dropout_prob: 0.3 -> 0.2`
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_v1`
+  - generated fixed compare evaluation json:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_v1.json`
+  - updated fixed compare summary:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Design decision
+  - returned to the original `label_smoothing_v1` checkpoint selection rule:
+    - `metric_for_best_model = eval_happy_calm_macro_f1`
+  - kept `learning_rate = 2e-5` fixed as requested
+  - changed only `hidden_dropout_prob` because the previous metric-only follow-up showed that selection logic alone could not fix the boundary
+  - left `attention_probs_dropout_prob` at the script default `0.3` so this stayed a true single-knob trial
+- Verification status
+  - train-time eval at epoch `1.0`
+    - `eval_accuracy = 0.4000`
+    - `eval_macro_f1 = 0.2931`
+    - `eval_happy_calm_macro_f1 = 0.4957`
+    - `eval_happy_to_calm_count = 105`
+    - `eval_calm_to_happy_count = 14`
+  - train-time eval at epoch `2.0` selected as best checkpoint
+    - `eval_accuracy = 0.4800`
+    - `eval_macro_f1 = 0.4379`
+    - `eval_happy_calm_macro_f1 = 0.5249`
+    - `eval_happy_to_calm_count = 93`
+    - `eval_calm_to_happy_count = 35`
+    - `eval_happy_calm_balanced_guard_score = 0.5480`
+  - post-train fixed compare evaluation
+    - accuracy `0.4400`
+    - macro F1 `0.3700`
+    - `HAPPY F1 = 0.6139`
+    - `CALM F1 = 0.5819`
+    - `happy_calm_macro_f1 = 0.6111`
+    - `happy_calm_balanced_guard_score = 0.6236`
+    - `HAPPY -> CALM = 49/150`
+    - `CALM -> HAPPY = 60/150`
+- Baseline comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - macro F1 `0.3648`
+    - `HAPPY F1 = 0.6146`
+    - `CALM F1 = 0.2941`
+    - `happy_calm_macro_f1 = 0.4868`
+    - `HAPPY -> CALM = 21/150`
+    - `CALM -> HAPPY = 113/150`
+  - previous label smoothing branch `...label_smoothing_v1`
+    - macro F1 `0.2411`
+    - `HAPPY F1 = 0.6030`
+    - `CALM F1 = 0.1600`
+    - `happy_calm_macro_f1 = 0.3936`
+    - `HAPPY -> CALM = 7/150`
+    - `CALM -> HAPPY = 115/150`
+  - new `hidden_dropout_prob = 0.2` result
+    - macro F1 improved to `0.3700`
+    - `HAPPY F1` stayed roughly flat at `0.6139`
+    - `CALM F1` improved strongly to `0.5819`
+    - `happy_calm_macro_f1` improved to `0.6111`
+    - `HAPPY -> CALM` worsened to `49/150`
+    - `CALM -> HAPPY` improved to `60/150`
+- Interpretation
+  - lowering hidden dropout to `0.2` is the first recent model-side run that beat the baseline on `macro_f1` and `happy_calm_macro_f1` together
+  - however, it achieved that by moving the boundary toward more `HAPPY -> CALM` confusion than the current baseline
+  - by the current fixed compare gate this is not promotable yet because both directions still need to be judged together, and `HAPPY -> CALM = 49/150` is materially worse than baseline `21/150`
+  - still, this is a stronger follow-up reference than the recent LR-only, weight-decay-only, and metric-only failures
+- Current blocker or caution
+  - this branch now shows a real trade-off instead of a pure collapse:
+    - better overall class separation and better `CALM`
+    - but too much `HAPPY -> CALM`
+  - do not promote to baseline, registry, or serving yet
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - use this result as the new local reference for the next single-knob search
+  - the next safest model-side candidate is a milder hidden-dropout step such as `0.25`, to test whether some of the `CALM` gain can be kept while pulling `HAPPY -> CALM` back down
+### 2026-03-30 KcELECTRA fixed compare hidden dropout 0.25 follow-up
+
+- Completed change
+  - kept the same fixed constraints before the next run:
+    - baseline remained `cpu_compare_medium_relabel_weighted`
+    - serving policy remained `TIRED fallback-only`
+    - no broad relabel by `emotion_major`
+    - no broad HAPPY -> CALM relabel expansion
+    - frozen fixed compare CSVs remained unchanged
+  - added one new config on the same `label_smoothing = 0.05` branch:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout25_v1.json`
+  - trained one single-knob variant without changing LR, metric rule, or data:
+    - only changed knob: `hidden_dropout_prob: 0.3 -> 0.25`
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout25_v1`
+  - generated fixed compare evaluation json:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout25_v1.json`
+  - updated fixed compare summary:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Design decision
+  - started from the same branch and rules as the `hidden_dropout = 0.2` trial
+  - kept `learning_rate = 2e-5`, `label_smoothing = 0.05`, and `metric_for_best_model = eval_happy_calm_macro_f1`
+  - changed only `hidden_dropout_prob` to test whether a milder step could reduce the `HAPPY -> CALM` over-correction seen at `0.2`
+- Verification status
+  - train-time eval at epoch `1.0` selected as best checkpoint
+    - `eval_accuracy = 0.3853`
+    - `eval_macro_f1 = 0.2855`
+    - `eval_happy_calm_macro_f1 = 0.4833`
+    - `eval_happy_to_calm_count = 50`
+    - `eval_calm_to_happy_count = 78`
+    - `eval_happy_calm_balanced_guard_score = 0.5245`
+  - train-time eval at epoch `2.0`
+    - `eval_accuracy = 0.3853`
+    - `eval_macro_f1 = 0.2829`
+    - `eval_happy_calm_macro_f1 = 0.4754`
+    - `eval_happy_to_calm_count = 51`
+    - `eval_calm_to_happy_count = 87`
+  - post-train fixed compare evaluation
+    - accuracy `0.3853`
+    - macro F1 `0.2855`
+    - `HAPPY F1 = 0.5273`
+    - `CALM F1 = 0.4195`
+    - `happy_calm_macro_f1 = 0.4833`
+    - `happy_calm_balanced_guard_score = 0.5245`
+    - `HAPPY -> CALM = 50/150`
+    - `CALM -> HAPPY = 78/150`
+- Baseline comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - macro F1 `0.3648`
+    - `HAPPY F1 = 0.6146`
+    - `CALM F1 = 0.2941`
+    - `happy_calm_macro_f1 = 0.4868`
+    - `HAPPY -> CALM = 21/150`
+    - `CALM -> HAPPY = 113/150`
+  - stronger local reference `hidden_dropout_prob = 0.2`
+    - macro F1 `0.3700`
+    - `HAPPY F1 = 0.6139`
+    - `CALM F1 = 0.5819`
+    - `happy_calm_macro_f1 = 0.6111`
+    - `HAPPY -> CALM = 49/150`
+    - `CALM -> HAPPY = 60/150`
+  - new `hidden_dropout_prob = 0.25` result
+    - macro F1 fell to `0.2855`
+    - `HAPPY F1` fell to `0.5273`
+    - `CALM F1` fell to `0.4195`
+    - `happy_calm_macro_f1` fell to `0.4833`
+    - `HAPPY -> CALM` stayed effectively unchanged at `50/150`
+    - `CALM -> HAPPY` worsened to `78/150`
+- Interpretation
+  - the milder hidden-dropout step did not recover the `HAPPY -> CALM` regression meaningfully
+  - instead it lost a large part of the overall and HAPPY/CALM gains achieved by the `0.2` run
+  - by the current fixed compare gate this is a failure, and `hidden_dropout = 0.2` should remain the stronger local reference
+  - do not promote this experiment to baseline, registry, or serving
+- Current blocker or caution
+  - hidden-dropout tuning now shows a non-linear response:
+    - `0.2` improved overall metrics strongly
+    - `0.25` lost those gains without fixing the main directional regression
+  - this suggests the next single-knob search should move to a different parameter family rather than keep nudging the same hidden-dropout axis
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - keep `hidden_dropout = 0.2` as the best local reference in this branch
+  - if continuing, the next safer single-knob candidate is `attention_probs_dropout_prob` adjustment while leaving hidden dropout at the default
+### 2026-03-30 narrow15 reference subset confirmation and hidden_dropout25 gate check
+
+- Completed change
+  - confirmed `manual_relabel_seed_v3_happy_to_calm_reviewed_narrow15.csv` should stay as a reference subset, not as the next direct relabel expansion seed
+  - reused the existing checkpoint-only candidate:
+    - config: `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout25_v1.json`
+    - checkpoint: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout25_v1/checkpoint-156`
+  - evaluated that checkpoint on the frozen narrow15 compare set and saved the result:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout25_v1_on_manual_seed_v3_happy_to_calm_reviewed_narrow15_fixed_compare.json`
+- Design decision
+  - `narrow15` remains useful as a safety-first reference subset because it exposes HAPPY/CALM boundary movement without reopening the broader manual relabel scope
+  - it should remain a frozen comparison slice, not the new training label seed, because label-side expansion alone already showed it cannot solve the current collapse pattern
+  - among the recent model-side options, `hidden_dropout25` was still the safest immediate check because it is a milder interpolation between the failed `0.3` default branch and the stronger but over-shifted `hidden_dropout20` run
+- Verification status
+  - narrow15 baseline reference:
+    - `cpu_compare_medium_relabel_weighted`
+    - accuracy `0.4013`
+    - macro F1 `0.3513`
+    - `HAPPY -> CALM = 29/135`
+    - `CALM -> HAPPY = 108/165`
+  - narrow15 manual relabel reference:
+    - `cpu_compare_medium_manual_seed_v2`
+    - accuracy `0.4267`
+    - macro F1 `0.3612`
+    - `HAPPY -> CALM = 109/135`
+    - `CALM -> HAPPY = 12/165`
+  - hidden dropout `0.25` checkpoint on narrow15 fixed compare:
+    - accuracy `0.3893`
+    - macro F1 `0.2911`
+    - `HAPPY F1 = 0.5135`
+    - `CALM F1 = 0.4610`
+    - `happy_calm_macro_f1 = 0.4975`
+    - `HAPPY -> CALM = 41/135`
+    - `CALM -> HAPPY = 84/165`
+- Interpretation
+  - `hidden_dropout25` did reduce reverse `CALM -> HAPPY` pressure versus the narrow15 baseline (`108 -> 84`), but it failed the frozen gate because both accuracy and macro F1 fell below the baseline and `HAPPY -> CALM` worsened (`29 -> 41`)
+  - that means the milder hidden-dropout interpolation is not strong enough to preserve the `hidden_dropout20` CALM gain while recovering the HAPPY boundary
+  - therefore `narrow15` should stay as the final reference subset for boundary tracking, and the next experiment should remain model-side rather than another label-side expansion
+- Current blocker or caution
+  - the current branch still trades one HAPPY/CALM error direction against the other
+  - narrow15 is now strong enough as a fixed reference slice, but it is not a promotion seed by itself
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - do not promote `hidden_dropout25`
+  - if continuing with one new single-knob run, use `attention_probs_dropout_prob: 0.3 -> 0.2` on the same `label_smoothing + happy_calm_guard_metric` branch and judge it first on the same frozen narrow15 gate
+### 2026-03-30 narrow15 attention_dropout20 gate check
+
+- Completed change
+  - reused the existing checkpoint-only candidate:
+    - config: `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_attention_dropout20_v1.json`
+    - checkpoint: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_attention_dropout20_v1/checkpoint-156`
+  - evaluated that checkpoint on the frozen narrow15 compare set and saved the result:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_attention_dropout20_v1_on_manual_seed_v3_happy_to_calm_reviewed_narrow15_fixed_compare.json`
+- Design decision
+  - stopped at the narrow15 gate and did not continue to broad fixed compare, because this candidate already showed a clear one-direction collapse on the reference slice
+  - this keeps the experiment scope small and avoids spending more runtime on a branch that is already non-promotable
+- Verification status
+  - train-time best checkpoint at epoch `1.0`
+    - `eval_accuracy = 0.3560`
+    - `eval_macro_f1 = 0.2133`
+    - `eval_happy_calm_macro_f1 = 0.3356`
+    - `eval_happy_to_calm_count = 143`
+    - `eval_calm_to_happy_count = 0`
+  - narrow15 fixed compare evaluation
+    - accuracy `0.3760`
+    - macro F1 `0.2213`
+    - `HAPPY F1 = 0.0000`
+    - `CALM F1 = 0.6105`
+    - `happy_calm_macro_f1 = 0.3575`
+    - `HAPPY -> CALM = 128/135`
+    - `CALM -> HAPPY = 0/165`
+- Baseline comparison
+  - narrow15 baseline `cpu_compare_medium_relabel_weighted`
+    - accuracy `0.4013`
+    - macro F1 `0.3513`
+    - `HAPPY -> CALM = 29/135`
+    - `CALM -> HAPPY = 108/165`
+  - narrow15 `hidden_dropout25`
+    - accuracy `0.3893`
+    - macro F1 `0.2911`
+    - `HAPPY -> CALM = 41/135`
+    - `CALM -> HAPPY = 84/165`
+  - narrow15 `attention_dropout20`
+    - accuracy `0.3760`
+    - macro F1 `0.2213`
+    - `HAPPY -> CALM = 128/135`
+    - `CALM -> HAPPY = 0/165`
+- Interpretation
+  - lowering attention dropout to `0.2` over-corrected even harder toward `CALM` than the recent hidden-dropout variants
+  - it nearly removed reverse `CALM -> HAPPY`, but did so by collapsing `HAPPY` recall almost completely
+  - by the frozen narrow15 gate this is a clear failure and there is no reason to run the broader fixed compare gate for this candidate
+- Current blocker or caution
+  - both `hidden_dropout25` and `attention_dropout20` failed on the same frozen reference slice, so simple dropout-axis tuning is no longer looking safe on this branch
+  - the branch still lacks a single-knob move that improves both directional counts and overall metrics together
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - keep `narrow15` frozen as the reference slice
+  - for the next session, do not continue another dropout-only tweak first; prefer a new experiment design step that changes the guard objective or loss weighting more explicitly against `HAPPY -> CALM`
+### 2026-03-31 narrow15 happy_to_calm penalty loss pre-check
+
+- Completed change
+  - added optional directional penalty support to:
+    - `ai-api-fastapi/training/emotion_classifier/scripts/train_emotion_classifier.py`
+  - added one new config on top of the strongest recent reference branch:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty10_v1.json`
+  - trained one new single-knob candidate:
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty10_v1`
+  - evaluated it on the frozen narrow15 compare set:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty10_v1_on_manual_seed_v3_happy_to_calm_reviewed_narrow15_fixed_compare.json`
+- Design decision
+  - started from the recent strongest reference `hidden_dropout20` branch because it was the only recent run that improved overall macro F1 and HAPPY/CALM macro F1 together
+  - changed only one new knob:
+    - `happy_to_calm_penalty_weight = 0.1`
+  - the loss penalty applies only when the gold label is `HAPPY` and the model assigns probability mass to `CALM`
+  - stopped at the narrow15 gate because this branch already showed a severe reverse collapse
+- Verification status
+  - train-time eval at epoch `1.0` selected as best checkpoint
+    - `eval_accuracy = 0.3653`
+    - `eval_macro_f1 = 0.2154`
+    - `eval_happy_calm_macro_f1 = 0.3211`
+    - `eval_happy_to_calm_count = 0`
+    - `eval_calm_to_happy_count = 146`
+  - train-time eval at epoch `2.0`
+    - `eval_accuracy = 0.3733`
+    - `eval_macro_f1 = 0.2288`
+    - `eval_happy_calm_macro_f1 = 0.3188`
+    - `eval_happy_to_calm_count = 0`
+    - `eval_calm_to_happy_count = 147`
+  - narrow15 fixed compare evaluation
+    - accuracy `0.3627`
+    - macro F1 `0.2469`
+    - `HAPPY F1 = 0.5443`
+    - `CALM F1 = 0.0000`
+    - `happy_calm_macro_f1 = 0.3014`
+    - `HAPPY -> CALM = 0/135`
+    - `CALM -> HAPPY = 164/165`
+- Baseline comparison
+  - narrow15 baseline `cpu_compare_medium_relabel_weighted`
+    - accuracy `0.4013`
+    - macro F1 `0.3513`
+    - `HAPPY -> CALM = 29/135`
+    - `CALM -> HAPPY = 108/165`
+  - narrow15 `hidden_dropout20`
+    - this branch was previously attractive on the broad gate, but had already shown `HAPPY -> CALM` pressure
+    - `HAPPY -> CALM = 49/150`
+    - `CALM -> HAPPY = 60/150`
+  - narrow15 `hidden_dropout20 + happy_to_calm_penalty_weight 0.1`
+    - accuracy `0.3627`
+    - macro F1 `0.2469`
+    - `HAPPY -> CALM = 0/135`
+    - `CALM -> HAPPY = 164/165`
+- Interpretation
+  - the directional penalty did exactly what it was asked to do on the guarded side:
+    - `HAPPY -> CALM` collapsed to zero
+  - but the penalty strength `0.1` over-corrected and destroyed the reverse boundary, effectively erasing `CALM` recall
+  - by the frozen narrow15 gate this is a clear failure and should not proceed to the broader fixed compare gate
+- Current blocker or caution
+  - the branch still reacts to single-knob pressure by flipping the collapse direction instead of balancing it
+  - simple directional penalty without a balancing term is not safe at the current strength
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - keep `narrow15` frozen as the reference slice
+  - if continuing, use a milder directional penalty design such as a much smaller `happy_to_calm_penalty_weight` or a balanced two-sided penalty, but not another dropout-only tweak
+  - in the next session, do not go to the broad fixed compare gate first; run exactly one smaller penalty-weight check on `narrow15` before any broader gate decision
+### 2026-03-31 narrow15 happy_to_calm penalty 0.02 check
+
+- Completed change
+  - added one smaller penalty config:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty02_v1.json`
+  - trained one new single-knob candidate:
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty02_v1`
+  - evaluated it on the frozen narrow15 compare set:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty02_v1_on_manual_seed_v3_happy_to_calm_reviewed_narrow15_fixed_compare.json`
+- Design decision
+  - kept the same reference branch as the penalty `0.1` run:
+    - `label_smoothing = 0.05`
+    - `hidden_dropout_prob = 0.2`
+  - changed only one knob:
+    - `happy_to_calm_penalty_weight: 0.1 -> 0.02`
+  - did not continue to the broad fixed compare gate because the narrow15 rule for this session was to confirm one smaller penalty weight first and stop unless the result was clearly more balanced
+- Verification status
+  - train-time eval at epoch `1.0`
+    - `eval_accuracy = 0.3960`
+    - `eval_macro_f1 = 0.2895`
+    - `eval_happy_calm_macro_f1 = 0.3697`
+    - `eval_happy_to_calm_count = 2`
+    - `eval_calm_to_happy_count = 133`
+  - train-time eval at epoch `2.0` selected as best checkpoint
+    - `eval_accuracy = 0.4333`
+    - `eval_macro_f1 = 0.3906`
+    - `eval_happy_calm_macro_f1 = 0.5070`
+    - `eval_happy_to_calm_count = 22`
+    - `eval_calm_to_happy_count = 105`
+  - narrow15 fixed compare evaluation
+    - accuracy `0.4293`
+    - macro F1 `0.3913`
+    - `HAPPY F1 = 0.5918`
+    - `CALM F1 = 0.4087`
+    - `happy_calm_macro_f1 = 0.5087`
+    - `HAPPY -> CALM = 16/135`
+    - `CALM -> HAPPY = 114/165`
+- Baseline comparison
+  - narrow15 baseline `cpu_compare_medium_relabel_weighted`
+    - accuracy `0.4013`
+    - macro F1 `0.3513`
+    - `HAPPY -> CALM = 29/135`
+    - `CALM -> HAPPY = 108/165`
+  - narrow15 penalty `0.1`
+    - accuracy `0.3627`
+    - macro F1 `0.2469`
+    - `HAPPY -> CALM = 0/135`
+    - `CALM -> HAPPY = 164/165`
+  - narrow15 penalty `0.02`
+    - accuracy `0.4293`
+    - macro F1 `0.3913`
+    - `HAPPY -> CALM = 16/135`
+    - `CALM -> HAPPY = 114/165`
+- Interpretation
+  - lowering the directional penalty from `0.1` to `0.02` removed the severe reverse collapse and produced the strongest narrow15 result so far on overall metrics
+  - `HAPPY -> CALM` improved materially versus the narrow15 baseline (`29 -> 16`)
+  - however, `CALM -> HAPPY` still worsened slightly versus the baseline (`108 -> 114`), so this is promising but not yet clearly balanced enough to skip directly to the broad gate by the current rule
+- Current blocker or caution
+  - this branch is finally close to a usable trade-off, but the reverse `CALM -> HAPPY` error is still not convincingly better than baseline
+  - broad fixed compare should remain paused until the narrow reference slice looks clearly balanced
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - keep `narrow15` frozen as the reference slice
+  - if continuing, prefer one more small loss-side refinement such as a slightly smaller penalty again or a light two-sided balance term before attempting the broad fixed compare gate
+### 2026-03-30 broad fixed compare confirmation for attention_dropout20
+
+- Completed change
+  - despite the earlier `narrow15` failure signal, ran the same single-knob candidate through the broader frozen fixed compare gate to confirm the direction was still non-promotable:
+    - config: `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_attention_dropout20_v1.json`
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_attention_dropout20_v1`
+  - generated broad fixed compare evaluation json:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_attention_dropout20_v1.json`
+  - updated fixed compare summary:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Design decision
+  - kept every fixed constraint unchanged:
+    - baseline `cpu_compare_medium_relabel_weighted`
+    - `TIRED fallback-only`
+    - no broad relabel by `emotion_major`
+    - no broad text rule
+    - same frozen fixed compare CSV
+  - this was still a single-knob run:
+    - `attention_probs_dropout_prob: 0.3 -> 0.2`
+  - the purpose of this follow-up was confirmation only, not promotion hunting, because `narrow15` had already shown a strong one-direction collapse
+- Verification status
+  - train-time eval at epoch `2.0`
+    - `eval_accuracy = 0.4093`
+    - `eval_macro_f1 = 0.3129`
+    - `eval_happy_calm_macro_f1 = 0.3407`
+    - `eval_happy_to_calm_count = 143`
+    - `eval_calm_to_happy_count = 1`
+  - broad fixed compare evaluation
+    - accuracy `0.4933`
+    - macro F1 `0.1703`
+    - `HAPPY F1 = 0.0132`
+    - `CALM F1 = 0.6682`
+    - `happy_calm_macro_f1 = 0.3407`
+    - `HAPPY -> CALM = 143/150`
+    - `CALM -> HAPPY = 1/150`
+- Baseline comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - macro F1 `0.3648`
+    - happy_calm_macro_f1 `0.4868`
+    - `HAPPY -> CALM = 21/150`
+    - `CALM -> HAPPY = 113/150`
+  - previous `hidden_dropout20` reference
+    - macro F1 `0.3056`
+    - happy_calm_macro_f1 `0.6111`
+    - `HAPPY -> CALM = 49/150`
+    - `CALM -> HAPPY = 60/150`
+  - new `attention_dropout20` result
+    - macro F1 worsened to `0.1703`
+    - happy_calm_macro_f1 worsened to `0.3407`
+    - `HAPPY -> CALM` collapsed to `143/150`
+    - `CALM -> HAPPY` improved to `1/150`
+- Interpretation
+  - the broad fixed compare gate confirmed the same failure seen on `narrow15`
+  - lowering attention dropout to `0.2` over-corrected toward `CALM`, nearly eliminating reverse `CALM -> HAPPY` at the cost of collapsing `HAPPY` recall
+  - by the agreed rule this is a clear failure because one direction improved only by causing a much larger collapse in the other direction, while both `macro_f1` and `happy_calm_macro_f1` stayed below baseline
+  - do not promote this experiment to baseline, registry, or serving
+- Current blocker or caution
+  - the current branch still does not have a safe dropout-only move that improves both directions and overall metrics together
+  - both the narrow reference slice and the broad fixed compare gate now agree that `attention_dropout20` is non-promotable
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - do not continue another simple dropout-only tweak first
+  - if continuing, switch to a new single-knob design that changes loss weighting or directional penalty more explicitly against `HAPPY -> CALM`
+### 2026-03-30 broad fixed compare confirmation for hidden_dropout20 happy_to_calm penalty 0.1
+
+- Completed change
+  - rechecked the current frozen broad fixed compare baseline sources before the run:
+    - `docs/IMPLEMENTATION_STATUS.md`
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+  - kept every fixed constraint unchanged:
+    - baseline `cpu_compare_medium_relabel_weighted`
+    - `TIRED fallback-only`
+    - no broad text rule
+    - no broad relabel by `emotion_major`
+    - approved sample_id seed only
+    - same frozen fixed compare CSV
+  - continued the single-knob candidate that had already failed on `narrow15`:
+    - config: `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty10_v1.json`
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty10_v1`
+  - generated broad fixed compare evaluation json:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty10_v1.json`
+  - updated fixed compare summary:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Design decision
+  - stayed on the same `label_smoothing = 0.05` branch and did not touch LR or dropout again
+  - changed only one non-dropout, non-LR knob:
+    - `happy_to_calm_penalty_weight = 0.1`
+  - kept `hidden_dropout_prob = 0.2` because that branch was still the strongest recent broad-gate reference before directional correction
+  - ran the broad fixed compare gate even though `narrow15` had already failed, to leave a direct like-for-like result in the main frozen comparison table
+- Verification status
+  - train-time eval at epoch `1.0` selected as best checkpoint
+    - `eval_accuracy = 0.3827`
+    - `eval_macro_f1 = 0.2558`
+    - `eval_happy_calm_macro_f1 = 0.3251`
+    - `eval_happy_to_calm_count = 0`
+    - `eval_happy_to_calm_rate = 0.0`
+    - `eval_calm_to_happy_count = 149`
+    - `eval_calm_to_happy_rate = 0.9933`
+  - train-time eval at epoch `2.0`
+    - `eval_accuracy = 0.3827`
+    - `eval_macro_f1 = 0.2260`
+    - `eval_happy_calm_macro_f1 = 0.3227`
+    - `eval_happy_to_calm_count = 0`
+    - `eval_happy_to_calm_rate = 0.0`
+    - `eval_calm_to_happy_count = 148`
+    - `eval_calm_to_happy_rate = 0.9867`
+  - broad fixed compare evaluation
+    - accuracy `0.3827`
+    - macro F1 `0.2558`
+    - `HAPPY F1 = 0.5890`
+    - `CALM F1 = 0.0000`
+    - `happy_calm_macro_f1 = 0.3251`
+    - `HAPPY -> CALM = 0/150`
+    - `happy_to_calm_rate = 0.0`
+    - `CALM -> HAPPY = 149/150`
+    - `calm_to_happy_rate = 0.9933`
+- Baseline comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - macro F1 `0.3648`
+    - `happy_calm_macro_f1 = 0.4868`
+    - `HAPPY -> CALM = 21/150`
+    - `happy_to_calm_rate = 0.14`
+    - `CALM -> HAPPY = 113/150`
+    - `calm_to_happy_rate = 0.7533`
+  - stronger local reference `hidden_dropout20`
+    - macro F1 `0.3700`
+    - `happy_calm_macro_f1 = 0.6111`
+    - `HAPPY -> CALM = 49/150`
+    - `happy_to_calm_rate = 0.3267`
+    - `CALM -> HAPPY = 60/150`
+    - `calm_to_happy_rate = 0.4`
+  - new `hidden_dropout20 + happy_to_calm_penalty_weight 0.1` result
+    - macro F1 worsened to `0.2558`
+    - `happy_calm_macro_f1` worsened to `0.3251`
+    - `HAPPY -> CALM` improved to `0/150`
+    - `happy_to_calm_rate` improved to `0.0`
+    - `CALM -> HAPPY` collapsed to `149/150`
+    - `calm_to_happy_rate` worsened to `0.9933`
+- Interpretation
+  - the one-sided penalty successfully suppressed `HAPPY -> CALM`, but it did so by flipping the boundary collapse almost entirely into `CALM -> HAPPY`
+  - by the agreed promotion rule this is a failure:
+    - `macro_f1` is below baseline
+    - `happy_calm_macro_f1` is below baseline
+    - reverse-direction collapse is much worse than both baseline and `hidden_dropout20`
+  - do not promote this experiment to baseline, registry, or serving
+- Current blocker or caution
+  - single-sided directional pressure is too strong on this branch and does not balance the boundary
+  - broad fixed compare now confirms the same failure pattern that was already visible on `narrow15`
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - keep using frozen fixed compare as the first promotion gate
+  - if continuing from this branch, try a milder penalty weight below `0.1` rather than another dropout-only or learning-rate-only experiment
+### 2026-03-30 broad fixed compare hidden_dropout20 happy_to_calm penalty 0.02
+
+- Completed change
+  - kept every fixed constraint unchanged before the next run:
+    - baseline `cpu_compare_medium_relabel_weighted`
+    - `TIRED fallback-only`
+    - no broad text rule
+    - no broad relabel by `emotion_major`
+    - approved sample_id seed only
+    - same frozen fixed compare CSV
+  - added one new config on the same `label_smoothing + hidden_dropout20` branch:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty02_v1.json`
+  - trained one new single-knob candidate:
+    - only changed knob: `happy_to_calm_penalty_weight = 0.02`
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty02_v1`
+  - generated broad fixed compare evaluation json:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty02_v1.json`
+  - updated fixed compare summary:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Design decision
+  - kept the strongest recent model-side branch fixed:
+    - `label_smoothing = 0.05`
+    - `hidden_dropout_prob = 0.2`
+    - `metric_for_best_model = eval_happy_calm_macro_f1`
+  - did not touch dropout, learning rate, weight decay, data, or compare CSV
+  - reduced the one-sided directional penalty from `0.1` to `0.02` to see whether the protected-side pressure could be softened enough to avoid the reverse collapse
+- Verification status
+  - train-time eval at epoch `1.0` selected as best checkpoint
+    - `eval_accuracy = 0.4453`
+    - `eval_macro_f1 = 0.3547`
+    - `eval_happy_calm_macro_f1 = 0.3235`
+    - `eval_happy_to_calm_count = 0`
+    - `eval_happy_to_calm_rate = 0.0`
+    - `eval_calm_to_happy_count = 149`
+    - `eval_calm_to_happy_rate = 0.9933`
+  - train-time eval at epoch `2.0`
+    - `eval_accuracy = 0.3920`
+    - `eval_macro_f1 = 0.2464`
+    - `eval_happy_calm_macro_f1 = 0.3550`
+    - `eval_happy_to_calm_count = 3`
+    - `eval_happy_to_calm_rate = 0.02`
+    - `eval_calm_to_happy_count = 143`
+    - `eval_calm_to_happy_rate = 0.9533`
+  - broad fixed compare evaluation
+    - accuracy `0.4333`
+    - macro F1 `0.3906`
+    - `HAPPY F1 = 0.6158`
+    - `CALM F1 = 0.3814`
+    - `happy_calm_macro_f1 = 0.5070`
+    - `HAPPY -> CALM = 22/150`
+    - `happy_to_calm_rate = 0.1467`
+    - `CALM -> HAPPY = 105/150`
+    - `calm_to_happy_rate = 0.7000`
+- Baseline comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - macro F1 `0.3648`
+    - `happy_calm_macro_f1 = 0.4868`
+    - `HAPPY -> CALM = 21/150`
+    - `happy_to_calm_rate = 0.1400`
+    - `CALM -> HAPPY = 113/150`
+    - `calm_to_happy_rate = 0.7533`
+  - stronger local reference `hidden_dropout20`
+    - macro F1 `0.3700`
+    - `happy_calm_macro_f1 = 0.6111`
+    - `HAPPY -> CALM = 49/150`
+    - `happy_to_calm_rate = 0.3267`
+    - `CALM -> HAPPY = 60/150`
+    - `calm_to_happy_rate = 0.4000`
+  - failed penalty reference `hidden_dropout20 + happy_to_calm_penalty_weight 0.1`
+    - macro F1 `0.2558`
+    - `happy_calm_macro_f1 = 0.3251`
+    - `HAPPY -> CALM = 0/150`
+    - `happy_to_calm_rate = 0.0`
+    - `CALM -> HAPPY = 149/150`
+    - `calm_to_happy_rate = 0.9933`
+  - new `hidden_dropout20 + happy_to_calm_penalty_weight 0.02` result
+    - macro F1 improved to `0.3906`
+    - `happy_calm_macro_f1` improved to `0.5070`
+    - `HAPPY -> CALM` improved strongly versus `hidden_dropout20` but was still slightly worse than baseline at `22/150`
+    - `happy_to_calm_rate` was `0.1467`, slightly above baseline `0.1400`
+    - `CALM -> HAPPY` improved versus baseline to `105/150`
+    - `calm_to_happy_rate` improved versus baseline to `0.7000`
+- Interpretation
+  - reducing the penalty from `0.1` to `0.02` successfully avoided the catastrophic reverse collapse and recovered a usable trade-off
+  - this is the first penalty-based run that beat the baseline on both `macro_f1` and `happy_calm_macro_f1` while also improving `CALM -> HAPPY`
+  - however, by the current fixed compare promotion rule it is still not promotable because the protected-side boundary is not actually better than baseline:
+    - `HAPPY -> CALM = 22/150` vs baseline `21/150`
+    - `happy_to_calm_rate = 0.1467` vs baseline `0.1400`
+  - do not promote this experiment to baseline, registry, or serving yet
+- Current blocker or caution
+  - the branch is now much closer to a balanced solution, but the remaining gap is exactly on the protected-side metric that the fixed compare gate is meant to guard
+  - this means future continuation should be smaller and more precise than the `0.1 -> 0.02` jump
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - keep `hidden_dropout20 + penalty0.02` as the strongest non-promotable local reference in the penalty family
+  - if continuing with one more single-knob run, try a slightly weaker penalty such as `0.015` or `0.01`, because the current result is close on `HAPPY -> CALM` but still misses the strict baseline gate
+### 2026-03-30 broad fixed compare confirmation for attention_dropout25
+
+- Completed change
+  - rechecked the current frozen broad fixed compare baseline sources before the run:
+    - `docs/IMPLEMENTATION_STATUS.md`
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+  - kept every fixed constraint unchanged:
+    - baseline `cpu_compare_medium_relabel_weighted`
+    - `TIRED fallback-only`
+    - no broad relabel by `emotion_major`
+    - no broad HAPPY -> CALM relabel expansion
+    - same frozen fixed compare CSV
+  - added one new single-knob config:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_attention_dropout25_v1.json`
+  - trained and evaluated one new candidate:
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_attention_dropout25_v1`
+    - evaluation json: `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_attention_dropout25_v1.json`
+  - updated fixed compare summary:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Design decision
+  - did not rerun `attention_dropout20`, because the current files and summary CSV already showed that `0.2` had been completed and had failed
+  - kept `learning_rate = 2e-5`, `label_smoothing = 0.05`, and `metric_for_best_model = eval_happy_calm_macro_f1`
+  - left `hidden_dropout_prob` at the default path and changed only one knob:
+    - `attention_probs_dropout_prob: 0.3 -> 0.25`
+- Verification status
+  - train-time eval at epoch `1.0`
+    - `eval_accuracy = 0.3493`
+    - `eval_macro_f1 = 0.2260`
+    - `eval_happy_calm_macro_f1 = 0.3356`
+    - `eval_happy_to_calm_count = 145`
+    - `eval_calm_to_happy_count = 0`
+  - train-time eval at epoch `2.0` selected as best checkpoint
+    - `eval_accuracy = 0.3867`
+    - `eval_macro_f1 = 0.2267`
+    - `eval_happy_calm_macro_f1 = 0.3445`
+    - `eval_happy_to_calm_count = 142`
+    - `eval_calm_to_happy_count = 0`
+    - `eval_happy_calm_balanced_guard_score = 0.4165`
+  - broad fixed compare evaluation
+    - accuracy `0.3867`
+    - macro F1 `0.2267`
+    - `HAPPY F1 = 0.0130`
+    - `CALM F1 = 0.6354`
+    - `happy_calm_macro_f1 = 0.3445`
+    - `happy_calm_balanced_guard_score = 0.4165`
+    - `HAPPY -> CALM = 142/150`
+    - `CALM -> HAPPY = 0/150`
+- Baseline comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - macro F1 `0.3648`
+    - `happy_calm_macro_f1 = 0.4868`
+    - `HAPPY -> CALM = 21/150`
+    - `CALM -> HAPPY = 113/150`
+  - stronger local reference `hidden_dropout20`
+    - macro F1 `0.3700`
+    - `happy_calm_macro_f1 = 0.6111`
+    - `HAPPY -> CALM = 49/150`
+    - `CALM -> HAPPY = 60/150`
+  - previous attention-dropout check `attention_dropout20`
+    - macro F1 `0.1703`
+    - `happy_calm_macro_f1 = 0.3407`
+    - `HAPPY -> CALM = 143/150`
+    - `CALM -> HAPPY = 1/150`
+  - new `attention_dropout25` result
+    - macro F1 improved slightly over `attention_dropout20` to `0.2267`, but remained far below baseline
+    - `happy_calm_macro_f1` improved slightly to `0.3445`, but remained far below baseline
+    - `HAPPY -> CALM` remained collapsed at `142/150`
+    - `CALM -> HAPPY` fell to `0/150`
+- Interpretation
+  - `attention_probs_dropout_prob = 0.25` stayed in the same failure regime as `0.2`
+  - it reduced reverse `CALM -> HAPPY` completely, but only by collapsing `HAPPY` recall almost entirely into `CALM`
+  - by the agreed fixed compare rule this is not promotable because:
+    - `macro_f1` is well below baseline
+    - `happy_calm_macro_f1` is well below baseline
+    - `HAPPY -> CALM` remains dramatically worse than baseline
+  - do not promote this experiment to baseline, registry, or serving
+- Current blocker or caution
+  - the attention-dropout axis now shows the same over-correction at both `0.2` and `0.25`
+  - this means the next single-knob search should not continue on the attention-dropout family
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - keep `TIRED fallback-only` unchanged
+  - treat `hidden_dropout20` as the stronger local reference among recent model-side runs
+  - if continuing, prefer a different non-dropout single knob rather than another attention-dropout tweak
+### 2026-03-30 broad fixed compare confirmation for hidden_dropout20 happy_to_calm penalty 0.02
+
+- Completed change
+  - rechecked the current frozen broad fixed compare baseline sources before the run:
+    - `docs/IMPLEMENTATION_STATUS.md`
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+  - kept every fixed constraint unchanged:
+    - baseline `cpu_compare_medium_relabel_weighted`
+    - `TIRED fallback-only`
+    - no broad relabel by `emotion_major`
+    - no broad HAPPY -> CALM relabel expansion
+    - same frozen fixed compare CSV
+  - reused the already prepared milder-penalty config and completed the run:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty02_v1.json`
+  - trained and evaluated one new candidate:
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty02_v1`
+    - evaluation json: `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty02_v1.json`
+  - updated fixed compare summary:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Design decision
+  - stayed on the same strongest recent model-side branch:
+    - `hidden_dropout_prob = 0.2`
+  - kept `learning_rate = 2e-5`, `label_smoothing = 0.05`, and `metric_for_best_model = eval_happy_calm_macro_f1`
+  - changed only one knob relative to `hidden_dropout20`:
+    - `happy_to_calm_penalty_weight: 0.0 -> 0.02`
+  - this was chosen because `0.1` had already shown one-sided over-correction, so the next safest check was a much milder directional penalty
+- Verification status
+  - train-time eval at epoch `1.0`
+    - `eval_accuracy = 0.3960`
+    - `eval_macro_f1 = 0.2895`
+    - `eval_happy_calm_macro_f1 = 0.3697`
+    - `eval_happy_to_calm_count = 2`
+    - `eval_calm_to_happy_count = 133`
+  - train-time eval at epoch `2.0` selected as best checkpoint
+    - `eval_accuracy = 0.4333`
+    - `eval_macro_f1 = 0.3906`
+    - `eval_happy_calm_macro_f1 = 0.5070`
+    - `eval_happy_to_calm_count = 22`
+    - `eval_calm_to_happy_count = 105`
+    - `eval_happy_calm_balanced_guard_score = 0.5396`
+  - broad fixed compare evaluation
+    - accuracy `0.4333`
+    - macro F1 `0.3906`
+    - `HAPPY F1 = 0.6158`
+    - `CALM F1 = 0.3814`
+    - `happy_calm_macro_f1 = 0.5070`
+    - `happy_calm_balanced_guard_score = 0.5396`
+    - `HAPPY -> CALM = 22/150`
+    - `CALM -> HAPPY = 105/150`
+- Baseline comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - macro F1 `0.3648`
+    - `HAPPY F1 = 0.6146`
+    - `CALM F1 = 0.2941`
+    - `happy_calm_macro_f1 = 0.4868`
+    - `HAPPY -> CALM = 21/150`
+    - `CALM -> HAPPY = 113/150`
+  - stronger local reference before penalty tuning `hidden_dropout20`
+    - macro F1 `0.3700`
+    - `HAPPY F1 = 0.6139`
+    - `CALM F1 = 0.5819`
+    - `happy_calm_macro_f1 = 0.6111`
+    - `HAPPY -> CALM = 49/150`
+    - `CALM -> HAPPY = 60/150`
+  - failed stronger penalty `hidden_dropout20 + happy_to_calm_penalty_weight 0.1`
+    - macro F1 `0.2558`
+    - `happy_calm_macro_f1 = 0.3251`
+    - `HAPPY -> CALM = 0/150`
+    - `CALM -> HAPPY = 149/150`
+  - new `hidden_dropout20 + happy_to_calm_penalty_weight 0.02` result
+    - macro F1 improved to `0.3906`
+    - `HAPPY F1` stayed effectively flat at `0.6158`
+    - `CALM F1` improved over baseline to `0.3814`
+    - `happy_calm_macro_f1` improved over baseline to `0.5070`
+    - `HAPPY -> CALM` was nearly restored to baseline at `22/150`
+    - `CALM -> HAPPY` improved over baseline to `105/150`
+- Interpretation
+  - unlike `penalty10`, the milder penalty did not flip the boundary collapse to the reverse side
+  - unlike plain `hidden_dropout20`, it kept most of the overall gain while pulling `HAPPY -> CALM` back close to baseline
+  - by the frozen broad fixed compare numbers this is the strongest recent compromise candidate:
+    - overall metrics improved over baseline
+    - `HAPPY -> CALM` is only `+1` row versus baseline
+    - `CALM -> HAPPY` is modestly better than baseline
+  - even so, baseline, registry, and serving remain unchanged in this task
+- Current blocker or caution
+  - this candidate is much stronger than the recent dropout-only and strong-penalty failures, but it still changes the boundary slightly relative to the active baseline
+  - before any promotion discussion, it should be judged carefully against the same acceptance rule used for the active baseline and any additional reference slice the team considers mandatory
+- Next recommended work
+  - keep baseline, registry, and serving unchanged for now
+  - keep `TIRED fallback-only` unchanged
+  - treat `hidden_dropout20 + happy_to_calm_penalty_weight 0.02` as the new strongest local reference
+  - if continuing with one more minimal step, prefer verification-oriented comparison rather than another large hyperparameter jump
+### 2026-03-30 broad fixed compare hidden_dropout20 happy_to_calm penalty 0.015
+
+- Completed change
+  - rechecked the current frozen broad fixed compare baseline sources before the run:
+    - `docs/IMPLEMENTATION_STATUS.md`
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+  - kept every fixed constraint unchanged:
+    - baseline `cpu_compare_medium_relabel_weighted`
+    - `TIRED fallback-only`
+    - no broad text rule
+    - no broad relabel by `emotion_major`
+    - approved sample_id seed only
+    - same frozen fixed compare CSV
+  - added one new config on the same `label_smoothing + hidden_dropout20` branch:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty015_v1.json`
+  - train-time best checkpoint had to be preserved with `save_total_limit = 2` in this config because the best epoch landed before the final epoch and the existing trainer flow otherwise deleted the best checkpoint before save
+  - trained one new single-knob candidate:
+    - only changed model-side knob: `happy_to_calm_penalty_weight = 0.015`
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty015_v1`
+  - generated broad fixed compare evaluation json:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty015_v1.json`
+  - updated fixed compare summary:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Design decision
+  - stayed on the same strongest local branch:
+    - `label_smoothing = 0.05`
+    - `hidden_dropout_prob = 0.2`
+    - `metric_for_best_model = eval_happy_calm_macro_f1`
+  - did not touch learning rate, dropout family, dataset, compare CSV, serving, or baseline
+  - chose `0.015` first because the previous local best penalty candidate `0.02` was only `+1` on `HAPPY -> CALM` versus baseline, so the next safest move was a slightly weaker penalty
+- Verification status
+  - files used
+    - train CSV: `ai-api-fastapi/training/emotion_classifier/processed/train_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+    - valid CSV: `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+    - broad fixed compare input: `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+  - train-time best checkpoint summary
+    - best checkpoint: epoch `1.0`, step `156`
+    - `eval_accuracy = 0.3787`
+    - `eval_macro_f1 = 0.2269`
+    - `eval_happy_calm_macro_f1 = 0.3341`
+    - `eval_happy_to_calm_count = 137`
+    - `eval_happy_to_calm_rate = 0.9133`
+    - `eval_calm_to_happy_count = 0`
+    - `eval_calm_to_happy_rate = 0.0`
+  - broad fixed compare evaluation
+    - accuracy `0.3787`
+    - macro F1 `0.2269`
+    - `HAPPY F1 = 0.0000`
+    - `CALM F1 = 0.6501`
+    - `happy_calm_macro_f1 = 0.3341`
+    - `HAPPY -> CALM = 137/150`
+    - `happy_to_calm_rate = 0.9133`
+    - `CALM -> HAPPY = 0/150`
+    - `calm_to_happy_rate = 0.0`
+- Baseline comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - macro F1 `0.3648`
+    - `happy_calm_macro_f1 = 0.4868`
+    - `HAPPY -> CALM = 21/150`
+    - `happy_to_calm_rate = 0.1400`
+    - `CALM -> HAPPY = 113/150`
+    - `calm_to_happy_rate = 0.7533`
+  - strongest local reference `hidden_dropout20 + happy_to_calm_penalty_weight 0.02`
+    - macro F1 `0.3906`
+    - `happy_calm_macro_f1 = 0.5070`
+    - `HAPPY -> CALM = 22/150`
+    - `happy_to_calm_rate = 0.1467`
+    - `CALM -> HAPPY = 105/150`
+    - `calm_to_happy_rate = 0.7000`
+  - new `hidden_dropout20 + happy_to_calm_penalty_weight 0.015` result
+    - macro F1 dropped to `0.2269`
+    - `happy_calm_macro_f1` dropped to `0.3341`
+    - `HAPPY -> CALM` exploded to `137/150`
+    - `happy_to_calm_rate` worsened to `0.9133`
+    - `CALM -> HAPPY` fell to `0/150`, but only because the boundary collapsed almost entirely into `CALM`
+- Interpretation
+  - this run clearly crossed the boundary into the opposite collapse regime from `0.02`
+  - by the fixed compare rule this is an unambiguous failure:
+    - `happy_to_calm_count` and `happy_to_calm_rate` are massively worse than baseline
+    - `macro_f1` and `happy_calm_macro_f1` are both far below baseline
+    - the reverse direction did not improve in a usable way; it simply disappeared because `HAPPY` recall collapsed
+  - promotion possible 여부: not promotable
+- Current blocker or caution
+  - the penalty branch is now showing a steep instability cliff below `0.02`
+  - even a small reduction from `0.02 -> 0.015` flipped the model into a `HAPPY -> CALM` collapse regime
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - keep `0.02` as the strongest non-promotable local reference
+  - if one more single-knob check is still allowed in the same session, continue to `0.01` only to confirm whether the sub-`0.02` range is uniformly unstable or only locally bad
+### 2026-03-30 broad fixed compare hidden_dropout20 happy_to_calm penalty 0.01
+
+- Completed change
+  - kept the same frozen constraints and compare gate unchanged:
+    - baseline `cpu_compare_medium_relabel_weighted`
+    - `TIRED fallback-only`
+    - no broad text rule
+    - no broad relabel by `emotion_major`
+    - approved sample_id seed only
+    - same frozen fixed compare CSV
+  - added one new config on the same branch:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty01_v1.json`
+  - kept `save_total_limit = 2` in this config as the same checkpoint-retention safeguard used for `0.015`
+  - trained one new single-knob candidate:
+    - only changed model-side knob: `happy_to_calm_penalty_weight = 0.01`
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty01_v1`
+  - generated broad fixed compare evaluation json:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty01_v1.json`
+  - updated fixed compare summary:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Design decision
+  - this was the next smaller single-knob step after the `0.015` collapse
+  - the goal was to check whether reducing the directional pressure further could restore the protected side without changing any other training factor
+- Verification status
+  - files used
+    - train CSV: `ai-api-fastapi/training/emotion_classifier/processed/train_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+    - valid CSV: `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+    - broad fixed compare input: `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+  - train-time best checkpoint summary
+    - best checkpoint: epoch `1.0`, step `156`
+    - `eval_accuracy = 0.3720`
+    - `eval_macro_f1 = 0.2185`
+    - `eval_happy_calm_macro_f1 = 0.3225`
+    - `eval_happy_to_calm_count = 0`
+    - `eval_happy_to_calm_rate = 0.0`
+    - `eval_calm_to_happy_count = 142`
+    - `eval_calm_to_happy_rate = 0.9467`
+  - broad fixed compare evaluation
+    - accuracy `0.3720`
+    - macro F1 `0.2185`
+    - `HAPPY F1 = 0.6219`
+    - `CALM F1 = 0.0000`
+    - `happy_calm_macro_f1 = 0.3225`
+    - `HAPPY -> CALM = 0/150`
+    - `happy_to_calm_rate = 0.0`
+    - `CALM -> HAPPY = 142/150`
+    - `calm_to_happy_rate = 0.9467`
+- Baseline comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - macro F1 `0.3648`
+    - `happy_calm_macro_f1 = 0.4868`
+    - `HAPPY -> CALM = 21/150`
+    - `happy_to_calm_rate = 0.1400`
+    - `CALM -> HAPPY = 113/150`
+    - `calm_to_happy_rate = 0.7533`
+  - strongest local reference `hidden_dropout20 + happy_to_calm_penalty_weight 0.02`
+    - macro F1 `0.3906`
+    - `happy_calm_macro_f1 = 0.5070`
+    - `HAPPY -> CALM = 22/150`
+    - `happy_to_calm_rate = 0.1467`
+    - `CALM -> HAPPY = 105/150`
+    - `calm_to_happy_rate = 0.7000`
+  - new `hidden_dropout20 + happy_to_calm_penalty_weight 0.01` result
+    - macro F1 dropped to `0.2185`
+    - `happy_calm_macro_f1` dropped to `0.3225`
+    - `HAPPY -> CALM` improved to `0/150`
+    - `happy_to_calm_rate` improved to `0.0`
+    - `CALM -> HAPPY` exploded to `142/150`
+    - `calm_to_happy_rate` worsened to `0.9467`
+- Interpretation
+  - this run confirms the same family-level failure pattern from the opposite direction:
+    - once the penalty moves below the local `0.02` reference, the model stops balancing the boundary and instead collapses one side
+  - unlike `0.015`, this collapse lands on the reverse side:
+    - `HAPPY -> CALM` is suppressed
+    - but `CALM -> HAPPY` becomes dramatically worse than baseline
+  - by the strict rule this is a failure even though the protected-side metric looks superficially better:
+    - `macro_f1` and `happy_calm_macro_f1` are both far below baseline
+    - `CALM -> HAPPY` is much worse than baseline
+    - directional gate is not satisfied in a balanced way
+  - promotion possible 여부: not promotable
+- Current blocker or caution
+  - the sub-`0.02` search now shows repeated directional collapse with poor overall quality
+  - this means the remaining planned step `0.005` is lower priority than documenting the current strongest candidate and stopping on time
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - treat `hidden_dropout20 + happy_to_calm_penalty_weight 0.02` as the best local reference from this session and the prior one
+  - next session starting point:
+    - re-open from `0.02` as the anchor
+    - if the team still wants the last planned single-knob confirmation, run `0.005` once under the same frozen fixed compare gate
+    - otherwise stop penalty descent and reconsider whether this axis has already shown enough instability below `0.02`
+### 2026-03-30 session stop note before penalty 0.005
+
+- Completed change
+  - prepared the next single-knob config without starting a new run:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty005_v1.json`
+- Design decision
+  - did not start the `0.005` train + broad fixed compare run in this session
+  - reason:
+    - local clock check was `2026-03-30T21:22:40+09:00`
+    - the just-finished full runs on the same branch had taken about `22` to `33` minutes each including broad fixed compare evaluation
+    - starting a fresh full run at that point would likely cross the requested stop boundary of `2026-03-30 21:30 Asia/Seoul`
+- Verification status
+  - no new training artifact was created for `0.005`
+  - no new evaluation json was created for `0.005`
+  - no new row was added to `happy_calm_fixed_compare_summary.csv` for `0.005`
+- Promotion possible 여부
+  - not applicable because the run was intentionally not started
+- Next recommended work
+  - next session should begin from the prepared config:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty005_v1.json`
+  - run it with the same frozen inputs and gate:
+    - train CSV `ai-api-fastapi/training/emotion_classifier/processed/train_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+    - valid CSV `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+    - broad fixed compare output path pattern under `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/`
+  - after that single run, compare only these five metrics against baseline before any promotion discussion:
+    - `macro_f1`
+    - `happy_calm_macro_f1`
+    - `happy_to_calm_count`
+    - `happy_to_calm_rate`
+    - `calm_to_happy_count`
+### 2026-03-30 broad fixed compare hidden_dropout20 happy_to_calm penalty 0.005
+
+- Completed change
+  - resumed the planned single-knob sweep after the later user continuation request
+  - kept the same frozen constraints:
+    - baseline `cpu_compare_medium_relabel_weighted`
+    - `TIRED fallback-only`
+    - no broad text rule
+    - no broad relabel by `emotion_major`
+    - approved sample_id seed only
+    - same frozen fixed compare CSV
+  - used the prepared config:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty005_v1.json`
+  - trained one new single-knob candidate:
+    - only changed model-side knob: `happy_to_calm_penalty_weight = 0.005`
+    - artifact dir: `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty005_v1`
+  - generated broad fixed compare evaluation json:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty005_v1.json`
+  - updated fixed compare summary:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/happy_calm_fixed_compare_summary.csv`
+- Design decision
+  - chose `0.005` because it was the last planned smaller penalty in the agreed sequence:
+    - `0.015 -> 0.01 -> 0.005`
+  - kept `save_total_limit = 2` in the config so the best checkpoint could be retained even if the best epoch landed before the final one
+  - did not touch dropout, learning rate, weight decay, data, serving, or baseline
+- Verification status
+  - files used
+    - train CSV: `ai-api-fastapi/training/emotion_classifier/processed/train_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+    - valid CSV: `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+    - broad fixed compare input: `ai-api-fastapi/training/emotion_classifier/processed/valid_emotion_mvp_manual_seed_v2_fixed_compare_medium.csv`
+  - train-time best checkpoint summary
+    - best checkpoint: epoch `2.0`, step `312`
+    - `eval_accuracy = 0.4747`
+    - `eval_macro_f1 = 0.4645`
+    - `eval_happy_calm_macro_f1 = 0.6160`
+    - `eval_happy_to_calm_count = 52`
+    - `eval_happy_to_calm_rate = 0.3467`
+    - `eval_calm_to_happy_count = 57`
+    - `eval_calm_to_happy_rate = 0.3800`
+  - broad fixed compare evaluation
+    - accuracy `0.5040`
+    - macro F1 `0.4916`
+    - `HAPPY F1 = 0.6398`
+    - `CALM F1 = 0.4034`
+    - `happy_calm_macro_f1 = 0.5360`
+    - `HAPPY -> CALM = 24/150`
+    - `happy_to_calm_rate = 0.1600`
+    - `CALM -> HAPPY = 99/150`
+    - `calm_to_happy_rate = 0.6600`
+- Baseline comparison
+  - baseline `cpu_compare_medium_relabel_weighted`
+    - macro F1 `0.3648`
+    - `happy_calm_macro_f1 = 0.4868`
+    - `HAPPY -> CALM = 21/150`
+    - `happy_to_calm_rate = 0.1400`
+    - `CALM -> HAPPY = 113/150`
+    - `calm_to_happy_rate = 0.7533`
+  - strongest earlier local reference `hidden_dropout20 + happy_to_calm_penalty_weight 0.02`
+    - macro F1 `0.3906`
+    - `happy_calm_macro_f1 = 0.5070`
+    - `HAPPY -> CALM = 22/150`
+    - `happy_to_calm_rate = 0.1467`
+    - `CALM -> HAPPY = 105/150`
+    - `calm_to_happy_rate = 0.7000`
+  - new `hidden_dropout20 + happy_to_calm_penalty_weight 0.005` result
+    - macro F1 improved strongly to `0.4916`
+    - `happy_calm_macro_f1` improved to `0.5360`
+    - `HAPPY -> CALM` worsened to `24/150`
+    - `happy_to_calm_rate` worsened to `0.1600`
+    - `CALM -> HAPPY` improved to `99/150`
+    - `calm_to_happy_rate` improved to `0.6600`
+- Interpretation
+  - this is now the strongest overall penalty-family result on the frozen broad fixed compare table
+  - however, it still fails the protected-side promotion gate:
+    - `HAPPY -> CALM = 24/150` vs baseline `21/150`
+    - `happy_to_calm_rate = 0.1600` vs baseline `0.1400`
+  - so the current rule still blocks promotion even though:
+    - `macro_f1` is much better than baseline
+    - `happy_calm_macro_f1` is better than baseline
+    - `CALM -> HAPPY` is better than baseline
+  - promotion possible 여부: not promotable, but this is a stronger “near-promotable” local reference than `0.02`
+- Current blocker or caution
+  - the penalty descent no longer looks monotonic:
+    - `0.015` collapsed `HAPPY -> CALM`
+    - `0.01` collapsed `CALM -> HAPPY`
+    - `0.005` recovered overall quality but still missed the protected-side gate
+  - this means “smaller penalty” did not simply move the model closer to baseline safety on the protected side
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - keep `0.005` recorded as the strongest non-promotable local candidate in the current penalty family
+  - next session starting point:
+    - compare `0.005` vs `0.02` side by side as the two best non-promotable references
+    - if the promotion rule remains strict on `HAPPY -> CALM`, stop one-sided penalty descent here
+    - the next useful change should not be another dropout-only or learning-rate-only run; it should be a different boundary-control idea that can lower `HAPPY -> CALM` without reintroducing large reverse collapse
+### 2026-03-30 narrow15 continuation for hidden_dropout20 smaller penalty sweep
+
+- Completed change
+  - added two new single-knob configs on the same `hidden_dropout20` branch:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty015_v1.json`
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty018_v1.json`
+  - trained two new candidates on the unchanged frozen fixed-compare medium train/valid set:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty015_v1`
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty018_v1`
+  - generated narrow15 evaluation JSONs:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty015_v1_on_manual_seed_v3_happy_to_calm_reviewed_narrow15_fixed_compare.json`
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty018_v1_on_manual_seed_v3_happy_to_calm_reviewed_narrow15_fixed_compare.json`
+- Design decision
+  - kept every non-target knob frozen:
+    - `hidden_dropout_prob = 0.2`
+    - `label_smoothing = 0.05`
+    - `learning_rate = 2e-5`
+    - same frozen narrow15 reference subset
+  - changed only `happy_to_calm_penalty_weight` one step at a time below `0.02`
+  - tried `0.015` first as the smallest meaningful relaxation from the current promising point, then `0.018` as a tighter rollback toward `0.02`
+- Verification status
+  - narrow15 baseline `cpu_compare_medium_relabel_weighted`
+    - accuracy `0.4013`
+    - macro F1 `0.3513`
+    - `HAPPY -> CALM = 29/135`
+    - `CALM -> HAPPY = 108/165`
+  - current best narrow15 candidate `hidden_dropout20 + happy_to_calm_penalty_weight 0.02`
+    - accuracy `0.4293`
+    - macro F1 `0.3913`
+    - `HAPPY -> CALM = 16/135`
+    - `CALM -> HAPPY = 114/165`
+  - new `hidden_dropout20 + happy_to_calm_penalty_weight 0.015`
+    - accuracy `0.3880`
+    - macro F1 `0.3083`
+    - `happy_calm_macro_f1 = 0.3416`
+    - `HAPPY -> CALM = 9/135`
+    - `CALM -> HAPPY = 153/165`
+  - new `hidden_dropout20 + happy_to_calm_penalty_weight 0.018`
+    - accuracy `0.4133`
+    - macro F1 `0.3585`
+    - `happy_calm_macro_f1 = 0.3186`
+    - `HAPPY -> CALM = 2/135`
+    - `CALM -> HAPPY = 160/165`
+- Interpretation
+  - both smaller-than-`0.02` checks reduced `HAPPY -> CALM`, but each run paid for it with a severe reverse collapse in `CALM -> HAPPY`
+  - `0.015` and `0.018` are both clear narrow15 failures because:
+    - reverse-direction error exploded far beyond both baseline and the current best candidate
+    - `happy_calm_macro_f1` dropped sharply
+    - neither run is more balanced than `0.02`
+  - broad fixed compare gate was not run for either candidate because the narrow15 guard already showed directional instability
+- Current blocker or caution
+  - the one-sided penalty family appears to have a narrow cliff near `0.02`
+  - below `0.02`, the branch quickly collapses `CALM` recall into `HAPPY`
+  - this means additional broad-gate runs are not justified unless narrow15 first shows a clearly more balanced trade-off
+- Session stop note
+  - last completed experiment in this session: `hidden_dropout20 + happy_to_calm_penalty_weight 0.018`
+  - broad gate decision: `do not run`
+  - reason: narrow15 failed the balance rule before broad compare
+  - current best narrow15 candidate remains `hidden_dropout20 + happy_to_calm_penalty_weight 0.02`
+  - time stop decision:
+    - checked local time at `2026-03-30T21:22:25+09:00`
+    - did not start `0.019` or `0.0195` because a fresh train + narrow15 eval would likely cross the `2026-03-30 21:30` stop rule
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - keep `narrow15` frozen and continue with one single-knob run only
+  - next start point: try `happy_to_calm_penalty_weight = 0.019` or `0.0195` once, and if reverse collapse still spikes, stop the one-sided penalty family and move to a small balanced two-sided loss
+
+### 2026-03-30 narrow15 confirmation for hidden_dropout20 happy_to_calm penalty 0.019
+
+- Completed change
+  - added one new single-knob config:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty019_v1.json`
+  - trained one new candidate on the unchanged frozen fixed-compare medium train/valid set:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty019_v1`
+  - generated narrow15 evaluation JSON:
+    - `ai-api-fastapi/training/emotion_classifier/artifacts/evaluation/valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty019_v1_on_manual_seed_v3_happy_to_calm_reviewed_narrow15_fixed_compare.json`
+- Design decision
+  - stayed on the same frozen branch:
+    - `hidden_dropout_prob = 0.2`
+    - `label_smoothing = 0.05`
+    - `learning_rate = 2e-5`
+    - same frozen `narrow15` reference subset
+  - changed only one knob relative to the current best local candidate:
+    - `happy_to_calm_penalty_weight: 0.02 -> 0.019`
+  - this was chosen as the smallest remaining one-sided penalty check before deciding whether the family itself should be retired
+- Verification status
+  - narrow15 baseline `cpu_compare_medium_relabel_weighted`
+    - accuracy `0.4013`
+    - macro F1 `0.3513`
+    - `HAPPY -> CALM = 29/135`
+    - `CALM -> HAPPY = 108/165`
+  - current best narrow15 candidate before this run `hidden_dropout20 + happy_to_calm_penalty_weight 0.02`
+    - accuracy `0.4293`
+    - macro F1 `0.3913`
+    - `HAPPY -> CALM = 16/135`
+    - `CALM -> HAPPY = 114/165`
+  - new `hidden_dropout20 + happy_to_calm_penalty_weight 0.019`
+    - accuracy `0.4040`
+    - macro F1 `0.3065`
+    - `happy_calm_macro_f1 = 0.2998`
+    - `HAPPY -> CALM = 1/135`
+    - `CALM -> HAPPY = 164/165`
+- Interpretation
+  - `0.019` reduced `HAPPY -> CALM` almost to zero, but it did so by nearly deleting `CALM` recall
+  - compared with `0.02`, this is clearly worse on every balance-oriented metric that matters:
+    - macro F1 down from `0.3913` to `0.3065`
+    - `happy_calm_macro_f1` down from `0.5087` to `0.2998`
+    - `CALM -> HAPPY` worsened from `114/165` to `164/165`
+  - broad fixed compare gate was not run because narrow15 already showed an extreme reverse-direction collapse
+- Current blocker or caution
+  - the one-sided penalty family is now bracketed tightly enough to conclude that moving below `0.02` does not improve balance on the frozen narrow15 slice
+  - `0.015`, `0.018`, and `0.019` all reproduced the same reverse-collapse pattern
+- Session conclusion
+  - last completed experiment: `hidden_dropout20 + happy_to_calm_penalty_weight 0.019`
+  - broad gate decision: `do not run`
+  - current best narrow15 candidate remains `hidden_dropout20 + happy_to_calm_penalty_weight 0.02`
+  - conclusion: stop descending the one-sided penalty branch below `0.02`
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - keep `0.02` as the best local reference
+  - next session start point: design one small balanced two-sided loss-side experiment instead of another one-sided penalty reduction
+
+### 2026-03-30 unattended auto run - cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty018_v1
+
+- Completed change
+  - script-generated evaluation completion for cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty018_v1
+  - config: C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\configs\training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty018_v1.json
+  - evaluation json: C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\evaluation\valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty018_v1.json
+  - artifact dir: C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty018_v1
+- Verification status
+  - accuracy 0.4333
+  - macro F1 0.3686
+  - happy_calm_macro_f1 0.3443
+  - HAPPY -> CALM = 2 (0.0133)
+  - CALM -> HAPPY = 145 (0.9667)
+- Current blocker or caution
+  - baseline, registry, and serving remain unchanged by this unattended script
+- Next recommended work
+  - re-read fixed compare summary before any promotion discussion
+
+### 2026-03-30 unattended auto run - cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty005_v1
+
+- Completed change
+  - script-generated evaluation completion for cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty005_v1
+  - config: C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\configs\training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty005_v1.json
+  - evaluation json: C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\evaluation\valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty005_v1.json
+  - artifact dir: C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty005_v1
+- Verification status
+  - accuracy 0.4747
+  - macro F1 0.4645
+  - happy_calm_macro_f1 0.6160
+  - HAPPY -> CALM = 52 (0.3467)
+  - CALM -> HAPPY = 57 (0.3800)
+- Comparison note
+  - baseline macro F1 0.364848313750145, happy_calm_macro_f1 0.486786029504476, HAPPY -> CALM 21, CALM -> HAPPY 113
+  - strongest local reference macro F1 0.390592072843933, happy_calm_macro_f1 0.507004391943056, HAPPY -> CALM 22, CALM -> HAPPY 105
+- Current blocker or caution
+  - baseline, registry, and serving remain unchanged by this unattended script
+- Next recommended work
+  - re-read fixed compare summary before any promotion discussion
+
+### 2026-03-30 bidirectional penalty 0.0025 narrow15 judgment and disk-space caution
+
+- Completed change
+  - re-ran evaluation for the recovered `best/` artifact from:
+    - `C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty0025_v1\best`
+  - generated the narrow15 fixed compare evaluation JSON:
+    - `C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\evaluation\valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty0025_v1_on_manual_seed_v3_happy_to_calm_reviewed_narrow15_fixed_compare.json`
+- Verification status
+  - narrow15 baseline `cpu_compare_medium_relabel_weighted`
+    - accuracy `0.4013`
+    - macro F1 `0.3513`
+    - `HAPPY -> CALM = 29/135`
+    - `CALM -> HAPPY = 108/165`
+  - narrow15 best one-sided local reference `hidden_dropout20 + happy_to_calm_penalty_weight 0.02`
+    - accuracy `0.4293`
+    - macro F1 `0.3913`
+    - `happy_calm_macro_f1 = 0.5087`
+    - `HAPPY -> CALM = 16/135`
+    - `CALM -> HAPPY = 114/165`
+  - new narrow15 `hidden_dropout20 + happy_calm_bidirectional_penalty_weight 0.0025`
+    - accuracy `0.3867`
+    - macro F1 `0.2250`
+    - `happy_calm_macro_f1 = 0.3568`
+    - `HAPPY -> CALM = 127/135`
+    - `CALM -> HAPPY = 0/165`
+- Interpretation
+  - the first balanced two-sided loss-side candidate failed clearly on the frozen narrow15 gate
+  - instead of balancing both directions, it collapsed almost all `HAPPY` rows into `CALM`
+  - because both broad fixed compare and narrow15 are worse than baseline and the one-sided `0.02` reference, the broad promotion gate stays closed
+- Current blocker or caution
+  - the original training command also hit a late checkpoint-save failure:
+    - `RuntimeError: PytorchStreamWriter failed writing file data/43: file write failed`
+  - the recovered `best/` artifact was usable for evaluation, but this now points to low-disk-space risk for further training runs
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - keep `hidden_dropout20 + happy_to_calm_penalty_weight 0.02` as the current best narrow15 anchor
+  - recover disk space before attempting the next balanced candidates:
+    - `happy_calm_bidirectional_penalty_weight = 0.005`
+    - `happy_calm_bidirectional_penalty_weight = 0.0075`
+
+### 2026-03-30 translation resume with valid API key blocked by disk-full save failure
+
+- Completed change
+  - retried `scripts/translate_mental_health_csv.py --resume-mode missing` using the user-provided valid `OPENAI_API_KEY`
+  - translation requests started successfully and progressed to `[10/1895]`
+  - hardened `scripts/translate_mental_health_csv.py` so future CSV writes now use:
+    - temp file write in the same directory
+    - flush + `fsync`
+    - `os.replace(...)` only after a full write succeeds
+- Verification status
+  - the previous `401 invalid_api_key` blocker is cleared for this shell session
+  - the new blocker is storage:
+    - translation failed with `OSError: [Errno 28] No space left on device`
+    - `C:` free space check returned `0 GB`
+- Current blocker or caution
+  - before the atomic-write hardening, the script wrote directly to `dataset_ko.csv`
+  - because disk exhaustion happened during save, the current file at:
+    - `C:\Users\wonbin\OneDrive\바탕 화면\mindcompass project\csv파일들\human-and-llm-mental-health-conversations\dataset_ko.csv`
+    is now corrupted/truncated and cannot be used as the last good partial output
+  - no automatic local backup copy was confirmed in the working folder during this session
+- Next recommended work
+  - free disk space on `C:` before any more training or translation
+  - restore `dataset_ko.csv` from OneDrive version history or another backup copy first
+  - only after restoration, rerun `scripts/translate_mental_health_csv.py --resume-mode missing` with the hardened script
+
+### 2026-03-30 boundary-control stop decision and manual OpenAI checklist
+
+- Completed change
+  - officially closed the one-sided `happy_to_calm_penalty_weight` axis with two fixed anchors:
+    - `0.02` = best local balance reference inside the family
+    - `0.005` = strongest overall result but still non-promotable
+  - documented the next single-knob boundary-control idea as:
+    - `happy_calm_bidirectional_penalty_weight`
+  - completed first validation on:
+    - `cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty0025_v1`
+  - added manual OpenAI quality checklist document:
+    - `docs/ai-api/MANUAL_OPENAI_QUALITY_CHECKLIST.md`
+  - updated documentation indexes:
+    - `docs/README.md`
+    - `docs/ai-api/README.md`
+    - `docs/ai-api/OPENAI_USAGE_AND_PROFILE_GUIDE.md`
+    - `docs/ai-api/KCELECTRA_TRAINING_LEARNING.md`
+- Design decision
+  - one-sided penalty family stop judgment:
+    - `0.005` improved overall quality strongly
+    - but `HAPPY -> CALM = 24/150` is worse than baseline `21/150`
+    - `0.019`, `0.018`, `0.01` repeatedly caused reverse collapse on `CALM -> HAPPY`
+    - therefore further one-sided descent/ascent is not the best next move
+  - next single-knob choice:
+    - keep the experiment single-knob and non-dropout
+    - use balanced `happy_calm_bidirectional_penalty_weight`
+  - first validation interpretation:
+    - `bidirectional_penalty0025` removed `CALM -> HAPPY`
+    - but caused `HAPPY -> CALM = 142/150`
+    - so the family is not promotable at the current scale
+- Verification status
+  - one-sided anchors
+    - `0.02`
+      - macro F1 `0.3906`
+      - happy_calm_macro_f1 `0.5070`
+      - HAPPY -> CALM `22/150`
+      - CALM -> HAPPY `105/150`
+    - `0.005`
+      - macro F1 `0.4916`
+      - happy_calm_macro_f1 `0.5360`
+      - HAPPY -> CALM `24/150`
+      - CALM -> HAPPY `99/150`
+  - first bidirectional validation
+    - `0.0025`
+      - macro F1 `0.2167`
+      - happy_calm_macro_f1 `0.3349`
+      - HAPPY -> CALM `142/150`
+      - CALM -> HAPPY `0/150`
+- Current blocker or caution
+  - baseline remains `cpu_compare_medium_relabel_weighted`
+  - serving policy remains `TIRED fallback-only`
+  - broad text rule, emotion_major wide relabel, dropout-only, learning-rate-only branches remain out of scope
+  - promotion is blocked unless fixed compare and directional counts both clear the gate
+- Next recommended work
+  - treat `0.02` and `0.005` as the final one-sided anchor pair
+  - do not spend time on stronger bidirectional values like `0.005` or `0.0075` before checking a smaller-than-`0.0025` scale
+  - if the bidirectional family continues, start below `0.0025`
+  - use `docs/ai-api/MANUAL_OPENAI_QUALITY_CHECKLIST.md` for all future real OpenAI quality checks
+
+### 2026-03-30 unattended auto run - cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty019_v1
+
+- Completed change
+  - script-generated evaluation completion for cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty019_v1
+  - config: C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\configs\training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty019_v1.json
+  - evaluation json: C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\evaluation\valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty019_v1.json
+  - artifact dir: C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_happy_to_calm_penalty019_v1
+- Verification status
+  - accuracy 0.4240
+  - macro F1 0.3157
+  - happy_calm_macro_f1 0.3235
+  - HAPPY -> CALM = 1 (0.0067)
+  - CALM -> HAPPY = 149 (0.9933)
+- Comparison note
+  - baseline macro F1 0.364848313750145, happy_calm_macro_f1 0.486786029504476, HAPPY -> CALM 21, CALM -> HAPPY 113
+  - strongest local reference macro F1 0.390592072843933, happy_calm_macro_f1 0.507004391943056, HAPPY -> CALM 22, CALM -> HAPPY 105
+- Current blocker or caution
+  - baseline, registry, and serving remain unchanged by this unattended script
+- Next recommended work
+  - re-read fixed compare summary before any promotion discussion
+
+### 2026-03-30 hidden_dropout20 penalty family stop decision and next non-dropout candidates
+
+- Completed change
+  - re-read the latest broad fixed compare summary after finishing the remaining `0.005` and `0.019` runs
+  - confirmed the one-sided `happy_to_calm_penalty_weight` family is now sufficiently bracketed for stop judgment:
+    - strong protected-side push: `0.019`, `0.018`, `0.01`, `0.005`
+    - current best compromise inside the family: `0.02`
+  - extended `train_emotion_classifier.py` to accept one new loss-side knob:
+    - `happy_calm_bidirectional_penalty_weight`
+  - added three new hidden_dropout20-fixed config candidates:
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty0025_v1.json`
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty005_v1.json`
+    - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty0075_v1.json`
+  - updated unattended runner candidate queue so the next session can continue into the new non-dropout family after the old one-sided queue is exhausted
+- Design decision
+  - fixed every previously agreed branch constraint:
+    - baseline stays `cpu_compare_medium_relabel_weighted`
+    - `hidden_dropout_prob = 0.2`
+    - `learning_rate = 2e-5`
+    - `label_smoothing = 0.05`
+    - same frozen fixed compare CSV
+    - no baseline replacement, no registry promotion, no serving change
+  - stop judgment for the old one-sided penalty family:
+    - `0.02` is still the best local trade-off inside that family
+    - `0.005` improved overall metrics strongly, but worsened the protected-side boundary beyond baseline:
+      - `HAPPY -> CALM = 24/150` vs baseline `21/150`
+    - `0.019` and nearby runs kept reproducing reverse collapse:
+      - `CALM -> HAPPY = 149/150`
+    - conclusion:
+      - further one-sided descent is no longer the best next step
+  - new family choice:
+    - use one balanced two-sided loss knob that penalizes both:
+      - `HAPPY -> CALM`
+      - `CALM -> HAPPY`
+    - this stays non-dropout and single-knob while directly targeting the failure mode that blocked both one-sided and attention-dropout branches
+- Related files
+  - `ai-api-fastapi/training/emotion_classifier/scripts/train_emotion_classifier.py`
+  - `ai-api-fastapi/training/emotion_classifier/scripts/run_until_2130_kst.ps1`
+  - `ai-api-fastapi/training/emotion_classifier/scripts/run_until_20260331_2130_kst.ps1`
+  - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty0025_v1.json`
+  - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty005_v1.json`
+  - `ai-api-fastapi/training/emotion_classifier/configs/training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty0075_v1.json`
+- Verification status
+  - one-sided family broad fixed compare reference points now include:
+    - `0.02`
+      - `macro_f1 = 0.3906`
+      - `happy_calm_macro_f1 = 0.5070`
+      - `HAPPY -> CALM = 22/150`
+      - `CALM -> HAPPY = 105/150`
+    - `0.005`
+      - `macro_f1 = 0.4916`
+      - `happy_calm_macro_f1 = 0.5360`
+      - `HAPPY -> CALM = 24/150`
+      - `CALM -> HAPPY = 99/150`
+    - `0.019`
+      - `macro_f1 = 0.3157`
+      - `happy_calm_macro_f1 = 0.3235`
+      - `HAPPY -> CALM = 1/150`
+      - `CALM -> HAPPY = 149/150`
+  - design reading from these numbers:
+    - `0.005` proved the branch can still raise overall quality
+    - but the protected-side boundary remains the blocker
+    - therefore the next useful single knob must control both directions, not only one side
+- New candidate plan
+  - candidate 1
+    - knob: `happy_calm_bidirectional_penalty_weight = 0.0025`
+    - goal: start below the aggressive one-sided range and check whether a very mild symmetric pressure can keep most of the `0.005` macro gain without worsening `HAPPY -> CALM`
+  - candidate 2
+    - knob: `happy_calm_bidirectional_penalty_weight = 0.005`
+    - goal: match the successful scale that produced strong macro recovery in the one-sided family, but distribute the pressure across both directions
+  - candidate 3
+    - knob: `happy_calm_bidirectional_penalty_weight = 0.0075`
+    - goal: one intermediate stronger check before concluding whether the balanced family also collapses
+- Next recommended work
+  - keep baseline, registry, and serving unchanged
+  - keep `hidden_dropout20 + happy_to_calm_penalty_weight 0.02` as the best one-sided local reference
+  - treat `0.005` as the strongest overall but still non-promotable penalty-family result
+  - next run order:
+    - `bidirectional_penalty0025`
+    - `bidirectional_penalty005`
+    - `bidirectional_penalty0075`
+  - after each run, compare at minimum:
+    - `macro_f1`
+    - `happy_calm_macro_f1`
+    - `happy_to_calm_count`
+    - `happy_to_calm_rate`
+    - `calm_to_happy_count`
+    - `calm_to_happy_rate`
+
+### 2026-03-30 human-and-llm translation resume attempt and OpenAI usage check
+
+- Completed change
+  - rechecked the current translation output state for:
+    - `C:\Users\wonbin\OneDrive\바탕 화면\mindcompass project\csv파일들\human-and-llm-mental-health-conversations\dataset_ko.csv`
+  - confirmed source/output row counts match:
+    - `dataset.csv = 3507`
+    - `dataset_ko.csv = 3507`
+  - counted rows with at least one blank translated field by direct CSV check:
+    - remaining rows `648`
+    - completed rows `2859`
+  - attempted to resume translation with existing script:
+    - `scripts/translate_mental_health_csv.py`
+    - mode `--resume-mode missing`
+    - model default `gpt-4o-mini`
+- Verification status
+  - current shell `OPENAI_API_KEY` length was only `8`
+  - resume attempt failed immediately with `401 invalid_api_key`
+  - no translation progress was committed in this retry because the first OpenAI request was rejected
+- OpenAI usage scope
+  - repository work that still needs real OpenAI calls is now concentrated in:
+    - `scripts/translate_mental_health_csv.py` batch translation work
+    - `ai-api` live runtime verification when `spring.ai.openai` is enabled in `ai-api/src/main/resources/application.yaml`
+  - local emotion-model training/evaluation work in `ai-api-fastapi/training/emotion_classifier` does not require OpenAI API usage
+- Cost estimate note
+  - remaining untranslated source text across the `648` rows was approximately `1,653,773` source characters
+  - using the current `gpt-4o-mini` pricing path and a character-based token estimate, the remaining translation cost is roughly in the `USD 0.50 ~ 0.65` range for one successful pass
+  - repeated retries, partial reruns, or switching to a larger model would raise that number
+- Current blocker or caution
+  - translation cannot continue until a valid `OPENAI_API_KEY` is loaded into the current shell or environment
+  - the script's own missing-row scan reported a larger candidate set than the simple blank-field row count, so the safe assumption is that the remaining work is at least `648` rows and may be treated more conservatively by the resume logic
+- Next recommended work
+  - set a valid `OPENAI_API_KEY`
+  - rerun the existing `--resume-mode missing` command against `dataset_ko.csv`
+  - after a successful run, recalculate remaining blank translated rows before any second pass
+
+### 2026-03-30 ai-api OpenAI profile guard and cost-driving API documentation
+
+- Completed change
+  - added explicit OpenAI enable flag and profile split for `ai-api`
+    - `ai-api/src/main/resources/application.yaml`
+    - `ai-api/src/main/resources/application-dev.yaml`
+    - `ai-api/src/main/resources/application-manual.yaml`
+    - `ai-api/src/main/resources/application-prod.yaml`
+  - changed real Spring AI prompt clients to register only when `ai.openai.enabled=true`
+    - `ai-api/src/main/java/com/mindcompass/aiapi/service/SpringDiaryAnalysisPromptClient.java`
+    - `ai-api/src/main/java/com/mindcompass/aiapi/service/SpringRiskScorePromptClient.java`
+    - `ai-api/src/main/java/com/mindcompass/aiapi/service/SpringReplyGenerationPromptClient.java`
+  - added no-op prompt clients for local fallback-only development
+    - `ai-api/src/main/java/com/mindcompass/aiapi/service/NoOpDiaryAnalysisPromptClient.java`
+    - `ai-api/src/main/java/com/mindcompass/aiapi/service/NoOpRiskScorePromptClient.java`
+    - `ai-api/src/main/java/com/mindcompass/aiapi/service/NoOpReplyGenerationPromptClient.java`
+  - updated manual OpenAI startup script to set `SPRING_PROFILES_ACTIVE=manual`
+    - `ai-api/scripts/start-ai-api-with-openai.ps1`
+  - added OpenAI cost and profile operation guide
+    - `docs/ai-api/OPENAI_USAGE_AND_PROFILE_GUIDE.md`
+    - `docs/ai-api/README.md`
+- Design decision
+  - local development should not accidentally spend OpenAI budget while testing ordinary diary/chat flows
+  - default behavior is now safe:
+    - default profile = `dev`
+    - `dev` keeps `ai.openai.enabled=false`
+  - only `manual` and `prod` are allowed to register the real Spring AI prompt clients
+  - this keeps the existing service-level fallback contract unchanged instead of branching business logic in controllers or services
+- Verification status
+  - configuration-level verification target:
+    - default boot path should resolve to `dev`
+    - `manual` / `prod` should flip `ai.openai.enabled=true`
+  - code-level verification target:
+    - when disabled, `NoOp*PromptClient` returns `null` and `DiaryAnalysisService`, `RiskScoreService`, `ReplyGenerationService` should continue through the existing fallback path
+    - when enabled, the existing `Spring*PromptClient` beans continue to call Spring AI `ChatClient`
+  - documentation updated with:
+    - cost-driving API list
+    - execution flow
+    - fallback behavior
+    - local/manual/prod run guidance
+- Cost-driving APIs clarified
+  - `POST /internal/ai/analyze-diary`
+  - `POST /internal/ai/risk-score`
+  - `POST /internal/ai/generate-reply`
+  - these are the routes that can produce OpenAI charges through Spring AI when `ai.openai.enabled=true`
+- Current blocker or caution
+  - `dev` now optimizes for zero-cost local development, so real LLM quality checks must be done intentionally in `manual` or `prod`
+  - if production deployment does not explicitly set `SPRING_PROFILES_ACTIVE=prod`, it will stay on the safe default path with OpenAI disabled
+- Next recommended work
+  - run `ai-api` once in default mode and once in `manual` mode to confirm profile switching in logs
+  - if needed, add one small Spring Boot test that asserts `NoOpDiaryAnalysisPromptClient` is loaded in `dev` and `SpringDiaryAnalysisPromptClient` is loaded in `manual`
+
+### 2026-03-30 ai-api OpenAI profile bean loading regression test
+
+- Completed change
+  - added one profile-focused Spring Boot context test:
+    - `ai-api/src/test/java/com/mindcompass/aiapi/service/OpenAiProfileBeanLoadingTest.java`
+- Design decision
+  - instead of depending only on manual boot logs, the repo should keep one cheap regression test that locks the intended profile contract:
+    - `dev` loads `NoOp*PromptClient`
+    - `manual` loads `Spring*PromptClient`
+  - the test excludes datasource and flyway auto-configuration so it can verify bean loading without requiring a live PostgreSQL connection
+- Verification status
+  - test target:
+    - `devProfileLoadsNoOpPromptClients`
+    - `manualProfileLoadsSpringPromptClients`
+  - intended assertion scope:
+    - exactly one prompt-client interface bean per domain
+    - no mixed loading between no-op and real Spring AI implementations
+  - focused verification result:
+    - `cd ai-api && .\gradlew.bat test --tests "com.mindcompass.aiapi.service.OpenAiProfileBeanLoadingTest"` passed
+    - confirmed contract:
+      - `dev` path uses no-op prompt clients
+      - `manual` path uses real Spring prompt clients
+- Current blocker or caution
+  - full `gradlew test` in `ai-api` still includes the existing `AiApiApplicationTests.contextLoads()` path, which currently fails on PostgreSQL/Flyway connection before reaching the new profile test
+  - use a focused test task first when validating this profile contract in isolation
+- Next recommended work
+  - run only `OpenAiProfileBeanLoadingTest` to confirm the new guard behavior
+  - later, decide whether `AiApiApplicationTests` should also be converted to a DB-free context load test
+
+### 2026-03-30 ai-api DB-free context smoke test stabilization
+
+- Completed change
+  - updated the default Spring Boot smoke test:
+    - `ai-api/src/test/java/com/mindcompass/aiapi/AiApiApplicationTests.java`
+  - changed it to a DB-free context load test by:
+    - excluding `DataSourceAutoConfiguration`
+    - excluding `FlywayAutoConfiguration`
+    - fixing `ai.openai.enabled=false`
+    - overriding `JdbcClient` with `@MockitoBean`
+- Design decision
+  - the purpose of `AiApiApplicationTests.contextLoads()` is to catch gross Spring wiring failures, not to require a live PostgreSQL/Flyway environment
+  - once OpenAI profile guards were added, it became more useful to keep one fast smoke test that can run in any local or CI environment without DB secrets
+  - registry/repository behavior is still covered separately by unit tests, so removing DB from this smoke test does not weaken the main behavior checks
+- Verification status
+  - full `ai-api` test suite now passes:
+    - `cd ai-api && .\gradlew.bat test`
+  - focused OpenAI profile test still passes:
+    - `cd ai-api && .\gradlew.bat test --tests "com.mindcompass.aiapi.service.OpenAiProfileBeanLoadingTest"`
+- Current blocker or caution
+  - this smoke test no longer verifies live PostgreSQL/Flyway startup, so DB connection health should remain a separate runtime or integration check
+- Next recommended work
+  - if needed, add one optional integration profile for DB-connected startup verification
+  - otherwise the next practical task is to extend the same zero-cost local-development pattern into `backend-api` integration docs or run scripts
+
+### 2026-03-30 backend-api local run pattern aligned to zero-cost dev and manual AI verification
+
+- Completed change
+  - updated the backend local startup script:
+    - `backend-api/scripts/start-backend-api.ps1`
+  - added a backend-side local AI run guide:
+    - `docs/BACKEND_AI_LOCAL_RUN_GUIDE.md`
+  - updated documentation indexes:
+    - `docs/README.md`
+    - `docs/OPERATIONS_GUIDE.md`
+- Design decision
+  - `backend-api` itself does not spend OpenAI budget directly
+  - the practical cost switch is which `ai-api` profile `backend-api` points to
+  - therefore the backend local run pattern should be:
+    - default local development: `backend-api -> ai-api(dev)`
+    - manual quality verification only: `backend-api -> ai-api(manual)`
+  - the startup script now makes the internal AI base URLs explicit instead of relying on implicit shell state
+- Verification status
+  - script-level verification:
+    - `start-backend-api.ps1` now sets
+      - `AI_PROVIDER`
+      - `AI_API_SPRING_BASE_URL`
+      - `AI_API_FASTAPI_BASE_URL`
+    - default values point to local `ai-api` and local `ai-api-fastapi`
+  - document-level verification:
+    - added concrete run commands for
+      - zero-cost dev
+      - manual OpenAI verification
+    - explained diary/chat execution order and fallback behavior from the backend point of view
+- Current blocker or caution
+  - switching from zero-cost dev to manual verification still requires the operator to start `ai-api` with the intended profile first
+  - `backend-api` can only point to `ai-api`; it does not itself control whether OpenAI is enabled inside `ai-api`
+- Next recommended work
+  - if desired, add one root-level convenience script that starts `ai-api` and `backend-api` together in either `dev` or `manual` mode
+  - otherwise the next useful cleanup is to reflect the same run pattern briefly in the top-level `README.md`
+
+### 2026-03-30 top-level README local run principle alignment
+
+- Completed change
+  - added a short top-level local run principle section:
+    - `README.md`
+- Design decision
+  - first-time readers should see the operating rule before diving into architecture details:
+    - ordinary local development uses zero-cost `backend-api -> ai-api(dev)`
+    - real OpenAI verification is intentional and manual-only
+- Verification status
+  - `README.md` now points readers to:
+    - `docs/BACKEND_AI_LOCAL_RUN_GUIDE.md`
+    - `docs/ai-api/OPENAI_USAGE_AND_PROFILE_GUIDE.md`
+- Next recommended work
+  - if desired, add one root-level convenience run script for `dev` and `manual` modes
+
+### 2026-03-30 unattended auto run - cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty0025_v1
+
+- Completed change
+  - script-generated evaluation completion for cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty0025_v1
+  - config: C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\configs\training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty0025_v1.json
+  - evaluation json: C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\evaluation\valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty0025_v1.json
+  - artifact dir: C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty0025_v1
+- Verification status
+  - accuracy 0.3667
+  - macro F1 0.2167
+  - happy_calm_macro_f1 0.3349
+  - HAPPY -> CALM = 142 (0.9467)
+  - CALM -> HAPPY = 0 (0.0000)
+- Comparison note
+  - baseline macro F1 0.364848313750145, happy_calm_macro_f1 0.486786029504476, HAPPY -> CALM 21, CALM -> HAPPY 113
+  - strongest local reference macro F1 0.390592072843933, happy_calm_macro_f1 0.507004391943056, HAPPY -> CALM 22, CALM -> HAPPY 105
+- Current blocker or caution
+  - baseline, registry, and serving remain unchanged by this unattended script
+- Next recommended work
+  - re-read fixed compare summary before any promotion discussion
+
+### 2026-03-30 unattended auto run - cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty005_v1
+
+- Completed change
+  - script-generated evaluation completion for cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty005_v1
+  - config: C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\configs\training_config_cpu_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty005_v1.json
+  - evaluation json: C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\evaluation\valid_metrics_cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty005_v1.json
+  - artifact dir: C:\programing\mindcompass\ai-api-fastapi\training\emotion_classifier\artifacts\cpu_compare_medium_manual_seed_v2_fixed_compare_happy_calm_guard_metric_label_smoothing_hidden_dropout20_bidirectional_penalty005_v1
+- Verification status
+  - accuracy 0.3827
+  - macro F1 0.2403
+  - happy_calm_macro_f1 0.3483
+  - HAPPY -> CALM = 4 (0.0267)
+  - CALM -> HAPPY = 141 (0.9400)
+- Comparison note
+  - baseline macro F1 0.364848313750145, happy_calm_macro_f1 0.486786029504476, HAPPY -> CALM 21, CALM -> HAPPY 113
+  - strongest local reference macro F1 0.390592072843933, happy_calm_macro_f1 0.507004391943056, HAPPY -> CALM 22, CALM -> HAPPY 105
+- Current blocker or caution
+  - baseline, registry, and serving remain unchanged by this unattended script
+- Next recommended work
+  - re-read fixed compare summary before any promotion discussion

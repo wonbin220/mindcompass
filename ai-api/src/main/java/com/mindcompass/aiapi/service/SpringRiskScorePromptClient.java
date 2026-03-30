@@ -3,9 +3,11 @@ package com.mindcompass.aiapi.service;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(prefix = "ai.openai", name = "enabled", havingValue = "true")
 public class SpringRiskScorePromptClient implements RiskScorePromptClient {
 
     private final ObjectProvider<ChatClient.Builder> chatClientBuilderProvider;
